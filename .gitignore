@@ -1,0 +1,54 @@
+# macOS / Windows
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+dist/
+build/
+*.egg-info/
+.coverage
+htmlcov/
+
+# Node
+node_modules/
+.pnpm-store/
+.turbo/
+coverage/
+*.tsbuildinfo
+
+# Ant Design Pro / Umi
+.umi/
+.umi-production/
+src/.umi/
+src/.umi-production/
+
+# Runtime / logs
+logs/
+*.log
+*.pid
+
+# Docker / local data
+.local/
+data/
+
+# Generated artifacts
+artifacts/
+reports/
