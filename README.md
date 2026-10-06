@@ -4,7 +4,7 @@ FactoryPilot 是面向离散制造企业的生产运营与供应链智能决策�
 
 > 当前阶段：Phase 0 — Product & Engineering Foundation
 >
-> 当前节点：Phase 0.2 FastAPI Backend Foundation
+> 当前节点：Phase 0.3 Ant Design Pro Frontend Foundation
 
 ## 核心原则
 
@@ -14,9 +14,9 @@ FactoryPilot 是面向离散制造企业的生产运营与供应链智能决策�
 - 数据可以虚构，但业务关系必须真实
 - 全链路支持 Trace、Evaluation 与可恢复工作流
 
-## 规划技术栈
+## 技术栈基线
 
-- Frontend: React / TypeScript / Ant Design Pro / ProComponents / TanStack Query / Zustand / ECharts / AG Grid / React Flow
+- Frontend: React 19 / TypeScript / Ant Design Pro v6 / Ant Design 6 / ProComponents / Umi Max / TanStack Query / Zustand / ECharts
 - Backend: Python 3.13 / FastAPI / Pydantic 2 / SQLAlchemy 2 / Alembic
 - Data: PostgreSQL / pgvector / Redis / Redis Streams
 - Agent: DeepSeek API / LangGraph / MCP / Structured Output / Tool Calling
@@ -25,6 +25,12 @@ FactoryPilot 是面向离散制造企业的生产运营与供应链智能决策�
 - Observability: OpenTelemetry / Prometheus / Grafana / Loki
 - Testing: Pytest / Vitest / Playwright
 - Infrastructure: Docker / Docker Compose / GitHub Actions
+
+## 当前进度
+
+- Phase 0.1: Repository + Monorepo Skeleton ✅
+- Phase 0.2: FastAPI Backend Foundation ✅
+- Phase 0.3: Ant Design Pro Frontend Foundation 🚧
 
 ## Backend Quick Start
 
@@ -50,6 +56,32 @@ uv run pytest
 uv run ruff check .
 uv run mypy app
 ```
+
+## Frontend Quick Start
+
+在仓库根目录：
+
+```powershell
+pnpm install
+pnpm dev:web
+```
+
+Web 默认运行在：
+
+```text
+http://127.0.0.1:8001
+```
+
+前端质量检查：
+
+```powershell
+pnpm lint:web
+pnpm typecheck:web
+pnpm test:web
+pnpm build:web
+```
+
+开发环境中 `/api/*` 会通过 Umi Proxy 转发到 FastAPI `127.0.0.1:8000`。
 
 ## 开发阶段
 
