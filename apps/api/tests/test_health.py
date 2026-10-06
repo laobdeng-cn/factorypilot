@@ -1,11 +1,18 @@
-from fastapi.testclient import TestClient
+import pytest
+from httpx import ASGITransport, AsyncClient, Response
 
 from app.main import app
 
 
-def test_service_info() -> None:
-    with TestClient(app) as client:
-        response = client.get("/")
+async def request(path: str) -> Response:
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://testserver") as client:
+        return await client.get(path)
+
+
+@pytest.mark.asyncio
+async def test_service_info() -> None:
+    response = await request("/")
 
     assert response.status_code == 200
     body = response.json()
@@ -13,9 +20,9 @@ def test_service_info() -> None:
     assert body["environment"] == "test"
 
 
-def test_liveness() -> None:
-    with TestClient(app) as client:
-        response = client.get("/api/v1/health/live")
+@pytest.mark.asyncio
+async def test_liveness() -> None:
+    response = await request("/api/v1/health/live")
 
     assert response.status_code == 200
     body = response.json()
@@ -24,9 +31,9 @@ def test_liveness() -> None:
     assert response.headers["X-Request-ID"]
 
 
-def test_readiness_without_database_check() -> None:
-    with TestClient(app) as client:
-        response = client.get("/api/v1/health/ready")
+@pytest.mark.asyncio
+async def test_readiness_without_database_check() -> None:
+    response = await request("/api/v1/health/ready")
 
     assert response.status_code == 200
     body = response.json()
@@ -34,9 +41,9 @@ def test_readiness_without_database_check() -> None:
     assert body["checks"]["database"] == "not_checked"
 
 
-def test_not_found_uses_standard_error_envelope() -> None:
-    with TestClient(app) as client:
-        response = client.get("/api/v1/does-not-exist")
+@pytest.mark.asyncio
+async def test_not_found_uses_standard_error_envelope() -> None:
+    response = await request("/api/v1/does-not-exist")
 
     assert response.status_code == 404
     body = response.json()
