@@ -3,6 +3,8 @@
 FactoryPilot 是面向离散制造企业的生产运营与供应链智能决策平台。项目以虚构企业 **华南精密电子有限公司** 为业务背景，通过 ERP / MES / WMS / SRM / QMS 模拟系统、Decision Engine、AI Agent、Human-in-the-loop 与可观测体系，构建从异常感知到业务执行的闭环。
 
 > 当前阶段：Phase 0 — Product & Engineering Foundation
+>
+> 当前节点：Phase 0.2 FastAPI Backend Foundation
 
 ## 核心原则
 
@@ -23,6 +25,31 @@ FactoryPilot 是面向离散制造企业的生产运营与供应链智能决策�
 - Observability: OpenTelemetry / Prometheus / Grafana / Loki
 - Testing: Pytest / Vitest / Playwright
 - Infrastructure: Docker / Docker Compose / GitHub Actions
+
+## Backend Quick Start
+
+```powershell
+cd apps/api
+Copy-Item .env.example .env
+uv sync
+uv run uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+```
+
+验证：
+
+```text
+http://127.0.0.1:8000/docs
+http://127.0.0.1:8000/api/v1/health/live
+http://127.0.0.1:8000/api/v1/health/ready
+```
+
+测试：
+
+```powershell
+uv run pytest
+uv run ruff check .
+uv run mypy app
+```
 
 ## 开发阶段
 
