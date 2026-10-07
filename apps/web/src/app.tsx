@@ -19,7 +19,7 @@ export const layout = () => ({
   title: 'FactoryPilot',
   logo: '/logo.svg',
   layout: 'side' as const,
-  navTheme: 'realDark' as const,
+  navTheme: 'light' as const,
   contentWidth: 'Fluid' as const,
   fixedHeader: true,
   fixSiderbar: true,
@@ -41,8 +41,14 @@ export function rootContainer(container: ReactNode) {
           colorSuccess: '#16a34a',
           colorWarning: '#f59e0b',
           colorError: '#dc2626',
+          colorBgBase: '#ffffff',
+          colorBgContainer: '#ffffff',
+          colorBgElevated: '#ffffff',
           colorBgLayout: '#f3f6fa',
+          colorFillAlter: '#f8fafc',
+          colorTextBase: '#1f2937',
           colorText: '#1f2937',
+          colorTextHeading: '#0f172a',
           colorTextSecondary: '#64748b',
           colorBorderSecondary: '#e8edf3',
           borderRadius: 6,
@@ -53,9 +59,12 @@ export function rootContainer(container: ReactNode) {
         components: {
           Card: {
             headerHeight: 48,
+            colorBgContainer: '#ffffff',
           },
           Table: {
             headerBg: '#f8fafc',
+            headerColor: '#334155',
+            rowHoverBg: '#f8fbff',
           },
         },
       }}
