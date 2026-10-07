@@ -2,7 +2,7 @@
 
 FactoryPilot 智造协同决策平台是面向离散制造企业的生产运营与供应链智能决策项目。
 
-当前开发阶段：Phase 0.6 — Docker Compose Full Development Environment。
+当前开发阶段：Phase 0.7 — CI + Code Quality。
 
 ## Repository Structure
 
@@ -85,14 +85,33 @@ cd <repository-root>
 pnpm dev:web
 ```
 
-## Phase 0.6
+## Quality Gates
 
-- Dockerized FastAPI backend
-- Dockerized Ant Design Pro frontend
-- PostgreSQL 18 + pgvector
-- Redis 8
-- service health checks and startup dependencies
-- automatic Alembic migration on backend startup
-- isolated Docker network
-- conflict-safe host ports for PostgreSQL and Redis
-- one-command full development stack
+本地检查：
+
+```powershell
+cd apps\api
+uv run ruff check .
+uv run mypy app
+uv run pytest
+
+cd ..\..
+pnpm lint:web
+pnpm typecheck:web
+pnpm test:web
+pnpm build:web
+docker compose config --quiet
+```
+
+GitHub Actions 在 push / pull request 到 `main` 时自动执行 Backend Quality、Frontend Quality 和 Compose Validation。Dependabot 每周检查 npm 与 Python 依赖更新。
+
+## Phase 0.7
+
+- GitHub Actions backend quality gate
+- GitHub Actions frontend quality gate
+- Docker Compose configuration validation
+- Ruff + mypy + pytest
+- Biome + TypeScript + Vitest + production build
+- CI concurrency cancellation
+- weekly Dependabot dependency monitoring
+- CI architecture documentation
