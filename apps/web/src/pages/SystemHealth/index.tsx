@@ -1,6 +1,6 @@
-import { PageContainer, ProCard } from '@ant-design/pro-components';
+import { PageContainer } from '@ant-design/pro-components';
 import { useQuery } from '@tanstack/react-query';
-import { Descriptions, Space, Tag, Typography } from 'antd';
+import { Card, Descriptions, Space, Tag, Typography } from 'antd';
 
 import { getLiveness, getReadiness } from '@/services/factorypilot';
 
@@ -23,7 +23,7 @@ export default function SystemHealthPage() {
       title="服务状态"
       content="用于验证 FactoryPilot Web 与 FastAPI 基础服务的联通状态。"
     >
-      <ProCard bordered title="FactoryPilot API">
+      <Card title="FactoryPilot API">
         <Space direction="vertical" size={20} style={{ width: '100%' }}>
           <Space>
             <Typography.Text strong>服务状态</Typography.Text>
@@ -69,7 +69,7 @@ export default function SystemHealthPage() {
             ]}
           />
         </Space>
-      </ProCard>
+      </Card>
     </PageContainer>
   );
 }
