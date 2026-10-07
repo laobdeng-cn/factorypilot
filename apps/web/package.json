@@ -5,10 +5,10 @@
   "description": "FactoryPilot Ant Design Pro frontend",
   "scripts": {
     "setup": "max setup",
-    "dev": "max dev --port 8001",
-    "start": "max dev --port 8001",
+    "dev": "cross-env PORT=8001 max dev",
+    "start": "cross-env PORT=8001 max dev",
     "build": "max build",
-    "preview": "max preview --port 8001",
+    "preview": "cross-env PORT=8001 max preview",
     "lint": "biome lint src config",
     "typecheck": "max setup && tsc --noEmit",
     "test": "vitest run"
@@ -31,6 +31,7 @@
     "@types/node": "^26.2.0",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
+    "cross-env": "^10.1.0",
     "typescript": "^7.0.2",
     "vitest": "^4.1.10"
   },
