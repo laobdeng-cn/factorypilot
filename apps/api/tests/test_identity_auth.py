@@ -6,12 +6,13 @@ from sqlalchemy import delete
 
 from app.db.session import AsyncSessionFactory
 from app.main import app
+from app.models.auth import AuthSession
 from app.models.enterprise import Department, Organization, Plant
 from app.models.user import User
 
 
 @pytest.mark.asyncio
-async def test_user_and_password_authentication_flow() -> None:
+async def test_user_and_token_authentication_flow() -> None:
     suffix = uuid4().hex[:8]
     organization_id: str | None = None
     plant_id: str | None = None
@@ -71,7 +72,6 @@ async def test_user_and_password_authentication_flow() -> None:
             user = response.json()
             user_id = user["id"]
             assert user["username"] == username
-            assert user["failed_login_count"] == 0
             assert "password_hash" not in user
 
             response = await client.post(
@@ -86,9 +86,54 @@ async def test_user_and_password_authentication_flow() -> None:
                 json={"username": username, "password": initial_password},
             )
             assert response.status_code == 200
-            assert response.json()["authenticated"] is True
-            assert response.json()["user"]["failed_login_count"] == 0
-            assert response.json()["user"]["last_login_at"] is not None
+            login = response.json()
+            assert login["authenticated"] is True
+            assert login["token_type"] == "bearer"
+            assert login["access_token"]
+            assert login["refresh_token"]
+            access_token = login["access_token"]
+            refresh_token = login["refresh_token"]
+
+            response = await client.get(
+                "/api/v1/auth/me",
+                headers={"Authorization": f"Bearer {access_token}"},
+            )
+            assert response.status_code == 200
+            current = response.json()
+            assert current["user_id"] == user_id
+            assert current["organization_id"] == organization_id
+            assert current["department_id"] == department_id
+            assert current["primary_plant_id"] == plant_id
+
+            response = await client.post(
+                "/api/v1/auth/refresh",
+                json={"refresh_token": refresh_token},
+            )
+            assert response.status_code == 200
+            refreshed = response.json()
+            assert refreshed["access_token"] != access_token
+            assert refreshed["refresh_token"] != refresh_token
+            access_token = refreshed["access_token"]
+
+            response = await client.post(
+                "/api/v1/auth/logout",
+                headers={"Authorization": f"Bearer {access_token}"},
+            )
+            assert response.status_code == 204
+
+            response = await client.get(
+                "/api/v1/auth/me",
+                headers={"Authorization": f"Bearer {access_token}"},
+            )
+            assert response.status_code == 401
+            assert response.json()["error"]["code"] == "auth.session_revoked"
+
+            response = await client.post(
+                "/api/v1/auth/login",
+                json={"username": username, "password": initial_password},
+            )
+            assert response.status_code == 200
+            second_access_token = response.json()["access_token"]
 
             response = await client.post(
                 f"/api/v1/users/{user_id}/password",
@@ -96,21 +141,22 @@ async def test_user_and_password_authentication_flow() -> None:
             )
             assert response.status_code == 204
 
+            response = await client.get(
+                "/api/v1/auth/me",
+                headers={"Authorization": f"Bearer {second_access_token}"},
+            )
+            assert response.status_code == 401
+            assert response.json()["error"]["code"] == "auth.session_revoked"
+
             response = await client.post(
                 "/api/v1/auth/login",
                 json={"username": username, "password": new_password},
             )
             assert response.status_code == 200
-
-            response = await client.get(
-                "/api/v1/users",
-                params={"organization_id": organization_id, "q": username},
-            )
-            assert response.status_code == 200
-            assert any(item["id"] == user_id for item in response.json()["items"])
     finally:
         async with AsyncSessionFactory() as session:
             if user_id is not None:
+                await session.execute(delete(AuthSession).where(AuthSession.user_id == user_id))
                 await session.execute(delete(User).where(User.id == user_id))
             if department_id is not None:
                 await session.execute(delete(Department).where(Department.id == department_id))
