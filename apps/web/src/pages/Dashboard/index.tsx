@@ -39,14 +39,23 @@ interface RiskOrder {
   risk: '高' | '中';
 }
 
-const kpis = [
+interface KpiMetric {
+  title: string;
+  value: number;
+  suffix: string;
+  precision?: number;
+  trend: number;
+  tone: 'blue' | 'green' | 'orange' | 'red';
+}
+
+const kpis: KpiMetric[] = [
   { title: 'OTD 准时交付率', value: 94.7, suffix: '%', precision: 1, trend: 1.8, tone: 'blue' },
   { title: '计划达成率', value: 92.3, suffix: '%', precision: 1, trend: 0.9, tone: 'green' },
   { title: '风险订单', value: 12, suffix: '单', trend: -3, tone: 'orange' },
   { title: '物料短缺', value: 27, suffix: '项', trend: -5, tone: 'orange' },
   { title: '延期采购', value: 8, suffix: '单', trend: 2, tone: 'red' },
   { title: '待处理异常', value: 8, suffix: '项', trend: -2, tone: 'red' },
-] as const;
+];
 
 const lineLoads = [
   { name: 'SMT-L1', value: 87, status: '运行中' },
