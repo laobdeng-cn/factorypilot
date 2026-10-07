@@ -1,128 +1,52 @@
-# FactoryPilot 智造协同决策平台
+# FactoryPilot
 
-FactoryPilot 是面向离散制造企业的生产运营与供应链智能决策平台。项目以虚构企业 **华南精密电子有限公司** 为业务背景，通过 ERP / MES / WMS / SRM / QMS 模拟系统、Decision Engine、AI Agent、Human-in-the-loop 与可观测体系，构建从异常感知到业务执行的闭环。
+FactoryPilot 智造协同决策平台是面向离散制造企业的生产运营与供应链智能决策项目。
 
-> 当前阶段：Phase 0 — Product & Engineering Foundation
->
-> 当前节点：Phase 0.3 Ant Design Pro Frontend Foundation
+当前开发阶段：Phase 0.4 — FactoryPilot UI / Navigation / Dashboard。
 
-## 核心原则
+## Repository Structure
 
-- 业务系统 + Decision Engine + AI Agent + Human-in-the-loop
-- LLM 负责理解、编排、解释与工具调用，不负责 MRP / CTP / APS 等确定性计算
-- 高风险写操作必须经过审批并完整审计
-- 数据可以虚构，但业务关系必须真实
-- 全链路支持 Trace、Evaluation 与可恢复工作流
+```text
+apps/
+  web/
+  api/
+  simulator/
+workers/
+packages/
+mcp/
+infra/
+tests/
+docs/
+```
 
-## 技术栈基线
+## Local Development
 
-- Frontend: React 19 / TypeScript / Ant Design Pro v6 / Ant Design 6 / ProComponents / Umi Max / TanStack Query / Zustand / ECharts
-- Backend: Python 3.13 / FastAPI / Pydantic 2 / SQLAlchemy 2 / Alembic
-- Data: PostgreSQL / pgvector / Redis / Redis Streams
-- Agent: DeepSeek API / LangGraph / MCP / Structured Output / Tool Calling
-- Workflow: Temporal
-- Optimization: Google OR-Tools CP-SAT
-- Observability: OpenTelemetry / Prometheus / Grafana / Loki
-- Testing: Pytest / Vitest / Playwright
-- Infrastructure: Docker / Docker Compose / GitHub Actions
-
-## 当前进度
-
-- Phase 0.1: Repository + Monorepo Skeleton ✅
-- Phase 0.2: FastAPI Backend Foundation ✅
-- Phase 0.3: Ant Design Pro Frontend Foundation 🚧
-
-## Backend Quick Start
+### Backend
 
 ```powershell
-cd apps/api
-Copy-Item .env.example .env
-uv sync
+cd apps\api
 uv run uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
-验证：
-
-```text
-http://127.0.0.1:8000/docs
-http://127.0.0.1:8000/api/v1/health/live
-http://127.0.0.1:8000/api/v1/health/ready
-```
-
-测试：
+### Frontend
 
 ```powershell
-uv run pytest
-uv run ruff check .
-uv run mypy app
-```
-
-## Frontend Quick Start
-
-在仓库根目录：
-
-```powershell
-pnpm install
+cd <repository-root>
 pnpm dev:web
 ```
 
-Web 默认运行在：
+Frontend: `http://127.0.0.1:8001`
 
-```text
-http://127.0.0.1:8001
-```
+Backend: `http://127.0.0.1:8000`
 
-前端质量检查：
+## Phase 0.4
 
-```powershell
-pnpm lint:web
-pnpm typecheck:web
-pnpm test:web
-pnpm build:web
-```
+- Ant Design Pro / Ant Design enterprise UI baseline
+- domestic manufacturing information architecture
+- industrial dark navigation
+- production operations dashboard
+- supply-chain risk overview
+- AI Decision Center preview
+- deterministic mock business data
 
-开发环境中 `/api/*` 会通过 Umi Proxy 转发到 FastAPI `127.0.0.1:8000`。
-
-## 开发阶段
-
-- Phase 0: Product & Engineering Foundation
-- Phase 1: Identity & Enterprise Foundation
-- Phase 2: Manufacturing Master Data
-- Phase 3: Enterprise Simulator
-- Phase 4: Factory Control Tower
-- Phase 5: Decision Engine
-- Phase 6: Exception Engine
-- Phase 7: Agent Runtime
-- Phase 8: Manufacturing Agents
-- Phase 9: AI Decision & HITL
-- Phase 10: Autonomous Workflow
-- Phase 11: Evaluation & Governance
-- Phase 12: Production Delivery
-
-## Monorepo 目标结构
-
-```text
-factorypilot/
-├── apps/
-│   ├── web/
-│   ├── api/
-│   └── simulator/
-├── workers/
-│   ├── agent-worker/
-│   └── workflow-worker/
-├── packages/
-│   ├── domain/
-│   ├── decision-engine/
-│   ├── agent-runtime/
-│   ├── integrations/
-│   └── shared/
-├── mcp/
-├── infra/
-├── tests/
-├── docs/
-└── .github/
-```
-
-## License
-
-Development repository for the FactoryPilot project.
+Real manufacturing domain data and persistence are introduced in subsequent phases.
