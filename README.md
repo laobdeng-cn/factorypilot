@@ -2,7 +2,9 @@
 
 FactoryPilot 智造协同决策平台是面向离散制造企业的生产运营与供应链智能决策项目。
 
-当前开发阶段：Phase 0.7 — CI + Code Quality。
+当前开发阶段：**Phase 0.8 — Architecture Docs + ERD + API/Event Conventions**。
+
+Phase 0 Engineering Foundation 已完成，下一阶段进入 Phase 1 — Identity & Enterprise Foundation。
 
 ## Repository Structure
 
@@ -105,13 +107,50 @@ docker compose config --quiet
 
 GitHub Actions 在 push / pull request 到 `main` 时自动执行 Backend Quality、Frontend Quality 和 Compose Validation。Dependabot 每周检查 npm 与 Python 依赖更新。
 
-## Phase 0.7
+## Architecture Contracts
 
-- GitHub Actions backend quality gate
-- GitHub Actions frontend quality gate
-- Docker Compose configuration validation
-- Ruff + mypy + pytest
-- Biome + TypeScript + Vitest + production build
-- CI concurrency cancellation
-- weekly Dependabot dependency monitoring
-- CI architecture documentation
+Phase 0.8 已固化以下开发契约：
+
+- [System Architecture Baseline](docs/architecture/007-system-architecture.md)
+- [Architecture / ADR Index](docs/architecture/README.md)
+- [Core Manufacturing Domain ERD](docs/domain/core-domain-erd.md)
+- [Domain Event Conventions](docs/domain/domain-events.md)
+- [HTTP API Conventions](docs/api/conventions.md)
+
+核心原则：
+
+- PostgreSQL 是核心事务事实源，Redis 只保存可重建状态。
+- 业务状态由所属 bounded context 管理。
+- Agent 默认生成建议，不直接绕过业务服务修改核心制造数据。
+- 高影响写操作必须具备权限、幂等、审计，并可进入审批。
+- 跨领域异步协作遵循领域事件契约，后续核心事务事件采用 Outbox Pattern。
+
+## Phase 0 Exit
+
+Phase 0 Engineering Foundation 已交付：
+
+- Monorepo 工程骨架
+- FastAPI Backend Foundation
+- Ant Design Pro Frontend Foundation
+- FactoryPilot 企业级制造 Dashboard / Navigation
+- PostgreSQL 18 + pgvector
+- Redis 8
+- Alembic baseline
+- Docker Compose 一键开发环境
+- Backend / Frontend / Compose CI quality gates
+- Dependabot dependency monitoring
+- 系统架构、领域 ERD、API 与 Event 契约
+
+## Next: Phase 1
+
+Phase 1 — Identity & Enterprise Foundation 将开始真正落地企业基础能力：
+
+- 登录与认证
+- Organization / Plant 基础组织模型
+- User / Role / Permission
+- RBAC + Data Scope
+- Audit Log
+- 前端登录、用户态与权限菜单
+- 首批真实业务表与 Alembic migration
+
+从 Phase 1 开始，新增业务实现应遵循 Phase 0.8 的架构和契约文档；若需要突破既有边界，应先新增 ADR。
