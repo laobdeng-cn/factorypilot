@@ -1,5 +1,3 @@
-import { request } from '@umijs/max';
-
 export interface HealthResponse {
   status: string;
   service: string;
@@ -9,14 +7,25 @@ export interface HealthResponse {
   checks: Record<string, string>;
 }
 
-export async function getLiveness(): Promise<HealthResponse> {
-  return request<HealthResponse>('/api/v1/health/live', {
+async function getHealth(path: string): Promise<HealthResponse> {
+  const response = await fetch(path, {
     method: 'GET',
+    headers: {
+      Accept: 'application/json',
+    },
   });
+
+  if (!response.ok) {
+    throw new Error(`FactoryPilot API request failed: ${response.status}`);
+  }
+
+  return (await response.json()) as HealthResponse;
 }
 
-export async function getReadiness(): Promise<HealthResponse> {
-  return request<HealthResponse>('/api/v1/health/ready', {
-    method: 'GET',
-  });
+export function getLiveness(): Promise<HealthResponse> {
+  return getHealth('/api/v1/health/live');
+}
+
+export function getReadiness(): Promise<HealthResponse> {
+  return getHealth('/api/v1/health/ready');
 }
