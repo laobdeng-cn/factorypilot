@@ -159,6 +159,26 @@ system.dependency_unavailable
 
 错误码一旦对前端或集成方发布，不应随意改名。
 
+### Authentication Error Codes
+
+Phase 1.3 定义以下稳定错误码：
+
+```text
+auth.invalid_credentials
+auth.account_locked
+auth.account_inactive
+auth.missing_token
+auth.invalid_token
+auth.token_expired
+auth.session_not_found
+auth.session_revoked
+auth.session_expired
+auth.refresh_token_reused
+auth.user_not_found
+```
+
+客户端收到任何 `401` 认证错误时不得自行推测会话仍有效。`auth.refresh_token_reused` 表示服务端已经撤销整个 refresh session，必须重新登录。
+
 ## HTTP Status Mapping
 
 | HTTP | 场景 |
@@ -168,11 +188,12 @@ system.dependency_unavailable
 | 202 | 已接受异步任务/工作流 |
 | 204 | 成功但无响应体 |
 | 400 | 请求语义错误 |
-| 401 | 未认证 |
-| 403 | 已认证但无权限 |
+| 401 | 未认证、令牌无效、会话失效 |
+| 403 | 已认证但无权限或账号停用 |
 | 404 | 资源不存在 |
 | 409 | 状态冲突、幂等冲突、并发冲突 |
 | 422 | 字段验证失败 |
+| 423 | 账号临时锁定 |
 | 429 | 限流 |
 | 500 | 未处理服务端错误 |
 | 503 | 数据库、Redis、外部关键依赖不可用 |
@@ -214,12 +235,22 @@ critical
 
 ## Authentication and Authorization
 
-Phase 1 实现后：
+Phase 1.3 起统一使用 Bearer access token + server-side refresh session：
 
-- API 认证统一通过 Bearer token/session strategy。
-- 路由层验证是否登录。
-- Application/Domain 层验证业务权限与数据范围。
-- 不仅依赖前端菜单隐藏。
+```http
+Authorization: Bearer <access_token>
+```
+
+约定：
+
+- access token 默认 15 分钟；
+- refresh token 默认 7 天并在每次 refresh 时轮换；
+- 原始 refresh token 不落库，只保存 SHA-256 digest；
+- access token 必须关联一个仍有效、未撤销的 `auth_sessions` 记录；
+- logout、密码修改、账号停用、refresh token 重放检测均可立即撤销 session；
+- 路由层解析 Current User Context；
+- Phase 1.4 起由 Application/Domain 层继续验证 RBAC 与数据范围；
+- 不仅依赖前端菜单隐藏；
 - 高影响写操作同时检查 RBAC、数据范围和审批策略。
 
 ## Audit Requirements
