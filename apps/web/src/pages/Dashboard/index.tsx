@@ -1,7 +1,8 @@
-import { PageContainer, ProCard } from '@ant-design/pro-components';
+import { PageContainer } from '@ant-design/pro-components';
 import { useQuery } from '@tanstack/react-query';
 import {
   Alert,
+  Card,
   Col,
   Progress,
   Row,
@@ -58,21 +59,21 @@ export default function DashboardPage() {
       <Row gutter={[16, 16]}>
         {metrics.map((metric) => (
           <Col key={metric.title} xs={24} sm={12} xl={6}>
-            <ProCard bordered>
+            <Card>
               <Statistic
                 precision={metric.precision}
                 suffix={metric.suffix}
                 title={metric.title}
                 value={metric.value}
               />
-            </ProCard>
+            </Card>
           </Col>
         ))}
       </Row>
 
       <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
         <Col xs={24} xl={14}>
-          <ProCard bordered title="产线负载">
+          <Card title="产线负载">
             <Space direction="vertical" size={20} style={{ width: '100%' }}>
               {lineLoads.map((line) => (
                 <div key={line.name}>
@@ -88,11 +89,11 @@ export default function DashboardPage() {
                 </div>
               ))}
             </Space>
-          </ProCard>
+          </Card>
         </Col>
 
         <Col xs={24} xl={10}>
-          <ProCard bordered title="平台基础状态">
+          <Card title="平台基础状态">
             <Space direction="vertical" size={16} style={{ width: '100%' }}>
               <div>
                 <Typography.Text type="secondary">FastAPI</Typography.Text>
@@ -119,7 +120,7 @@ export default function DashboardPage() {
                 </Typography.Paragraph>
               </div>
             </Space>
-          </ProCard>
+          </Card>
         </Col>
       </Row>
     </PageContainer>
