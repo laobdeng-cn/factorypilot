@@ -88,21 +88,27 @@ async def login(session: AsyncSession, payload: LoginRequest) -> LoginResponse:
     )
 
 
-async def _active_session(
+async def get_active_session(
     session: AsyncSession, claims: TokenClaims, *, now: datetime
 ) -> AuthSession:
     auth_session = await session.get(AuthSession, claims.session_id)
     if auth_session is None or auth_session.user_id != claims.user_id:
         raise AppError(
-            code="auth.session_not_found", message="Authentication session was not found", status_code=401
+            code="auth.session_not_found",
+            message="Authentication session was not found",
+            status_code=401,
         )
     if auth_session.revoked_at is not None:
         raise AppError(
-            code="auth.session_revoked", message="Authentication session has been revoked", status_code=401
+            code="auth.session_revoked",
+            message="Authentication session has been revoked",
+            status_code=401,
         )
     if auth_session.refresh_expires_at <= now:
         raise AppError(
-            code="auth.session_expired", message="Authentication session has expired", status_code=401
+            code="auth.session_expired",
+            message="Authentication session has expired",
+            status_code=401,
         )
     return auth_session
 
@@ -110,7 +116,7 @@ async def _active_session(
 async def refresh(session: AsyncSession, refresh_token: str) -> TokenPairResponse:
     claims = decode_token(refresh_token, expected_type="refresh")
     now = datetime.now(UTC)
-    auth_session = await _active_session(session, claims, now=now)
+    auth_session = await get_active_session(session, claims, now=now)
 
     if not compare_digest(auth_session.refresh_token_hash, hash_refresh_token(refresh_token)):
         auth_session.revoked_at = now
@@ -125,13 +131,21 @@ async def refresh(session: AsyncSession, refresh_token: str) -> TokenPairRespons
 
     user = await session.get(User, claims.user_id)
     if user is None:
-        raise AppError(code="auth.user_not_found", message="Authenticated user not found", status_code=401)
+        raise AppError(
+            code="auth.user_not_found",
+            message="Authenticated user not found",
+            status_code=401,
+        )
     if not user.is_active:
         auth_session.revoked_at = now
         auth_session.revoke_reason = "account_inactive"
         auth_session.updated_at = now
         await session.commit()
-        raise AppError(code="auth.account_inactive", message="Account is inactive", status_code=403)
+        raise AppError(
+            code="auth.account_inactive",
+            message="Account is inactive",
+            status_code=403,
+        )
 
     access_token, access_expires_at, new_refresh_token = _token_pair(
         user=user, auth_session=auth_session, now=now
