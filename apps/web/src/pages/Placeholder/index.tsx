@@ -1,6 +1,5 @@
-import { PageContainer, ProCard } from '@ant-design/pro-components';
-import { useLocation } from '@umijs/max';
-import { Empty, Typography } from 'antd';
+import { PageContainer } from '@ant-design/pro-components';
+import { Card, Empty, Typography } from 'antd';
 
 const moduleNames: Record<string, string> = {
   '/operations/orders': '订单履约',
@@ -12,12 +11,11 @@ const moduleNames: Record<string, string> = {
 };
 
 export default function PlaceholderPage() {
-  const location = useLocation();
-  const name = moduleNames[location.pathname] ?? '业务模块';
+  const name = moduleNames[window.location.pathname] ?? '业务模块';
 
   return (
     <PageContainer title={name} content="页面入口已经建立，业务功能将在后续 Phase 实现。">
-      <ProCard bordered>
+      <Card>
         <Empty
           description={
             <Typography.Text type="secondary">
@@ -25,7 +23,7 @@ export default function PlaceholderPage() {
             </Typography.Text>
           }
         />
-      </ProCard>
+      </Card>
     </PageContainer>
   );
 }
