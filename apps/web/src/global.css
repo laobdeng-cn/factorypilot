@@ -3,23 +3,64 @@ body,
 #root {
   min-height: 100%;
   margin: 0;
+  color-scheme: light;
 }
 
 body {
   background: #f3f6fa;
+  color: #1f2937;
 }
 
-.ant-pro-layout .ant-layout-sider {
+/* Keep FactoryPilot content light while styling only the navigation as industrial dark. */
+.ant-pro-layout .ant-layout-sider,
+.ant-pro-layout .ant-pro-sider {
+  background: #0f172a !important;
   border-right: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .ant-pro-sider-logo {
+  background: #0f172a !important;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-.ant-pro-sider-logo h1 {
+.ant-pro-sider-logo h1,
+.ant-pro-sider-logo a {
+  color: #f8fafc !important;
   font-weight: 600;
   letter-spacing: 0.2px;
+}
+
+.ant-pro-sider .ant-menu,
+.ant-pro-sider .ant-menu-sub {
+  background: #0f172a !important;
+}
+
+.ant-pro-sider .ant-menu-item,
+.ant-pro-sider .ant-menu-submenu-title,
+.ant-pro-sider .ant-menu-item .anticon,
+.ant-pro-sider .ant-menu-submenu-title .anticon {
+  color: #cbd5e1 !important;
+}
+
+.ant-pro-sider .ant-menu-item:hover,
+.ant-pro-sider .ant-menu-submenu-title:hover {
+  color: #ffffff !important;
+  background: #172554 !important;
+}
+
+.ant-pro-sider .ant-menu-item-selected {
+  color: #ffffff !important;
+  background: #1677ff !important;
+}
+
+.ant-pro-sider .ant-menu-item-selected .anticon {
+  color: #ffffff !important;
+}
+
+.ant-pro-sider .ant-pro-sider-collapsed-button {
+  color: #cbd5e1;
+  background: #172033;
+  border-color: rgba(255, 255, 255, 0.08);
 }
 
 .ant-pro-page-container-children-container {
@@ -33,8 +74,34 @@ body {
 }
 
 .fp-dashboard .ant-card {
+  color: #1f2937;
+  background: #ffffff;
   border: 1px solid #e8edf3;
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+}
+
+.fp-dashboard .ant-card-head,
+.fp-dashboard .ant-card-body {
+  color: #1f2937;
+  background: #ffffff;
+}
+
+.fp-dashboard .ant-card-head-title,
+.fp-dashboard .ant-statistic-title,
+.fp-dashboard .ant-typography {
+  color: inherit;
+}
+
+.fp-dashboard .ant-table,
+.fp-dashboard .ant-table-container,
+.fp-dashboard .ant-table-tbody > tr > td {
+  color: #334155;
+  background: #ffffff;
+}
+
+.fp-dashboard .ant-table-thead > tr > th {
+  color: #334155;
+  background: #f8fafc;
 }
 
 .fp-overview-strip {
@@ -57,6 +124,7 @@ body {
 
 .fp-overview-title.ant-typography {
   margin: 4px 0 2px;
+  color: #0f172a;
 }
 
 .fp-kpi-card {
