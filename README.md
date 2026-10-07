@@ -2,24 +2,9 @@
 
 FactoryPilot 智造协同决策平台是面向离散制造企业的生产运营与供应链智能决策项目。
 
-当前开发阶段：**Phase 1.1 — Organization / Plant / Department Foundation**。
+当前开发阶段：**Phase 1.2 — User + Password Authentication**。
 
 Phase 0 Engineering Foundation 已完成。Phase 1 正在建立企业身份、组织、权限和审计基础。
-
-## Repository Structure
-
-```text
-apps/
-  web/
-  api/
-  simulator/
-workers/
-packages/
-mcp/
-infra/
-tests/
-docs/
-```
 
 ## One-command Development Stack
 
@@ -38,8 +23,6 @@ docker compose up -d --build
 - PostgreSQL host port: `55432`
 - Redis host port: `56379`
 
-后端容器启动时自动执行 `alembic upgrade head`。
-
 ## Phase 1.1 Enterprise APIs
 
 ```text
@@ -51,7 +34,16 @@ GET/POST   /api/v1/departments
 GET/PATCH  /api/v1/departments/{department_id}
 ```
 
-Organization、Plant、Department 均使用 UUID 主键、稳定业务编码、active/inactive 生命周期、UTC 时间戳和 `version` 乐观锁字段。公开 API 不提供物理删除。
+## Phase 1.2 Identity APIs
+
+```text
+GET/POST   /api/v1/users
+GET/PATCH  /api/v1/users/{user_id}
+POST       /api/v1/users/{user_id}/password
+POST       /api/v1/auth/login
+```
+
+Passwords are stored only as Argon2id hashes. Five consecutive failed attempts temporarily lock the account for 15 minutes. Phase 1.2 validates credentials only; JWT access/refresh tokens are reserved for Phase 1.3.
 
 ## Manual Backend Verification
 
@@ -66,12 +58,13 @@ uv run pytest
 uv run uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
-完成迁移后，Swagger 应出现 `organizations`、`plants`、`departments` 基础 API。
+完成迁移后，`alembic current` 应为 `20261008_0003 (head)`，Swagger 应出现 `enterprise` 与 `identity` API 分组。
 
 ## Architecture Contracts
 
 - [System Architecture Baseline](docs/architecture/007-system-architecture.md)
 - [Enterprise Structure Foundation](docs/architecture/008-enterprise-structure-foundation.md)
+- [User + Password Authentication](docs/architecture/009-user-password-authentication.md)
 - [Core Manufacturing Domain ERD](docs/domain/core-domain-erd.md)
 - [Domain Event Conventions](docs/domain/domain-events.md)
 - [HTTP API Conventions](docs/api/conventions.md)

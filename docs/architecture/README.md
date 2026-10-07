@@ -12,6 +12,7 @@ FactoryPilot 架构文档与 ADR 索引。
 - [006 CI and Code Quality](./006-ci-and-code-quality.md)
 - [007 System Architecture Baseline](./007-system-architecture.md)
 - [008 Enterprise Structure Foundation](./008-enterprise-structure-foundation.md)
+- [009 User + Password Authentication](./009-user-password-authentication.md)
 
 ## Architecture Decision Records
 
