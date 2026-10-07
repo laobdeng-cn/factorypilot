@@ -2,16 +2,17 @@ from datetime import UTC, datetime, timedelta
 from math import ceil
 from uuid import UUID
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.elements import ColumnElement
 
 from app.core.errors import AppError
 from app.core.security import hash_password, password_needs_rehash, verify_password
+from app.models.auth import AuthSession
 from app.models.user import User
 from app.schemas.enterprise import Page
-from app.schemas.identity import LoginRequest, LoginResponse, UserCreate, UserRead, UserUpdate
+from app.schemas.identity import LoginRequest, UserCreate, UserRead, UserUpdate
 from app.services import enterprise as enterprise_service
 
 _MAX_FAILED_LOGIN_ATTEMPTS = 5
@@ -61,6 +62,17 @@ async def _commit_or_conflict(session: AsyncSession) -> None:
             message="Username, employee number, email or mobile already exists",
             status_code=409,
         ) from exc
+
+
+async def _revoke_user_sessions(
+    session: AsyncSession, user_id: UUID, *, reason: str, now: datetime | None = None
+) -> None:
+    revoked_at = now or datetime.now(UTC)
+    await session.execute(
+        update(AuthSession)
+        .where(AuthSession.user_id == user_id, AuthSession.revoked_at.is_(None))
+        .values(revoked_at=revoked_at, revoke_reason=reason, updated_at=revoked_at)
+    )
 
 
 async def _validate_user_scope(
@@ -215,6 +227,8 @@ async def update_user(session: AsyncSession, user_id: UUID, payload: UserUpdate)
         if key in {"username", "employee_no", "display_name"} and value is None:
             continue
         setattr(entity, key, value)
+    if data.get("is_active") is False:
+        await _revoke_user_sessions(session, entity.id, reason="account_deactivated")
     entity.version += 1
     await _commit_or_conflict(session)
     await session.refresh(entity)
@@ -227,12 +241,13 @@ async def change_password(session: AsyncSession, user_id: UUID, new_password: st
     entity.failed_login_count = 0
     entity.locked_until = None
     entity.version += 1
+    await _revoke_user_sessions(session, entity.id, reason="password_changed")
     await session.commit()
     await session.refresh(entity)
     return entity
 
 
-async def authenticate_user(session: AsyncSession, payload: LoginRequest) -> LoginResponse:
+async def authenticate_credentials(session: AsyncSession, payload: LoginRequest) -> User:
     username = _normalize_username(payload.username)
     entity = await session.scalar(select(User).where(User.username == username))
     if entity is None:
@@ -277,4 +292,4 @@ async def authenticate_user(session: AsyncSession, payload: LoginRequest) -> Log
     entity.last_login_at = now
     await session.commit()
     await session.refresh(entity)
-    return LoginResponse(authenticated=True, user=UserRead.model_validate(entity))
+    return entity
