@@ -26,6 +26,7 @@ export default defineConfig({
       changeOrigin: true,
     },
   },
+  esbuildMinifyIIFE: true,
   npmClient: 'pnpm',
   favicons: ['/favicon.svg'],
 });
