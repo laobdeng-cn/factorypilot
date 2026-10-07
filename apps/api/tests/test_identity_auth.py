@@ -117,5 +117,6 @@ async def test_user_and_password_authentication_flow() -> None:
             if plant_id is not None:
                 await session.execute(delete(Plant).where(Plant.id == plant_id))
             if organization_id is not None:
-                await session.execute(delete(Organization).where(Organization.id == organization_id))
+                cleanup = delete(Organization).where(Organization.id == organization_id)
+                await session.execute(cleanup)
             await session.commit()
