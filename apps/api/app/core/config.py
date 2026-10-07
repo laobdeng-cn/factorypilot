@@ -24,15 +24,20 @@ class Settings(BaseSettings):
     api_v1_prefix: str = "/api/v1"
 
     database_url: str = (
-        "postgresql+asyncpg://factorypilot:factorypilot@localhost:5432/factorypilot"
+        "postgresql+asyncpg://factorypilot:factorypilot@127.0.0.1:5432/factorypilot"
     )
+    database_pool_size: int = 5
+    database_max_overflow: int = 10
+    redis_url: str = "redis://127.0.0.1:6379/0"
+
     cors_origins: list[str] = Field(
-        default_factory=lambda: ["http://localhost:5173", "http://localhost:8000"]
+        default_factory=lambda: ["http://localhost:8001", "http://127.0.0.1:8001"]
     )
 
     log_level: str = "INFO"
     log_json: bool = False
-    healthcheck_database: bool = False
+    healthcheck_database: bool = True
+    healthcheck_redis: bool = True
 
 
 @lru_cache

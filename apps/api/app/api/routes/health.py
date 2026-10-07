@@ -7,6 +7,7 @@ from sqlalchemy import text
 
 from app.core.config import get_settings
 from app.core.errors import AppError
+from app.db.redis import redis_client
 from app.db.session import engine
 
 router = APIRouter()
@@ -40,17 +41,33 @@ async def liveness() -> HealthResponse:
 
 @router.get("/ready", response_model=HealthResponse, summary="Readiness probe")
 async def readiness() -> HealthResponse:
-    if not settings.healthcheck_database:
-        return _base_response("ready", {"application": "ok", "database": "not_checked"})
+    checks = {
+        "application": "ok",
+        "database": "not_checked",
+        "redis": "not_checked",
+    }
 
-    try:
-        async with engine.connect() as connection:
-            await connection.execute(text("SELECT 1"))
-    except Exception as exc:  # database-specific exception is intentionally abstracted here
-        raise AppError(
-            code="database_unavailable",
-            message="Database readiness check failed",
-            status_code=503,
-        ) from exc
+    if settings.healthcheck_database:
+        try:
+            async with engine.connect() as connection:
+                await connection.execute(text("SELECT 1"))
+        except Exception as exc:
+            raise AppError(
+                code="database_unavailable",
+                message="Database readiness check failed",
+                status_code=503,
+            ) from exc
+        checks["database"] = "ok"
 
-    return _base_response("ready", {"application": "ok", "database": "ok"})
+    if settings.healthcheck_redis:
+        try:
+            await redis_client.ping()
+        except Exception as exc:
+            raise AppError(
+                code="redis_unavailable",
+                message="Redis readiness check failed",
+                status_code=503,
+            ) from exc
+        checks["redis"] = "ok"
+
+    return _base_response("ready", checks)

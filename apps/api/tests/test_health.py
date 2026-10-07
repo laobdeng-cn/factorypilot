@@ -32,13 +32,14 @@ async def test_liveness() -> None:
 
 
 @pytest.mark.asyncio
-async def test_readiness_without_database_check() -> None:
+async def test_readiness_without_infrastructure_checks() -> None:
     response = await request("/api/v1/health/ready")
 
     assert response.status_code == 200
     body = response.json()
     assert body["status"] == "ready"
     assert body["checks"]["database"] == "not_checked"
+    assert body["checks"]["redis"] == "not_checked"
 
 
 @pytest.mark.asyncio

@@ -10,6 +10,7 @@ from app.core.config import get_settings
 from app.core.errors import register_exception_handlers
 from app.core.logging import configure_logging
 from app.core.middleware import register_http_middleware
+from app.db.redis import close_redis_client
 from app.db.session import engine
 
 settings = get_settings()
@@ -28,6 +29,7 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     try:
         yield
     finally:
+        await close_redis_client()
         await engine.dispose()
         logger.info("application_stopped", service=settings.project_name)
 
