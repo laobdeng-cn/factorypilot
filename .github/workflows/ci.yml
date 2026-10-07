@@ -17,6 +17,26 @@ jobs:
   backend-quality:
     name: Backend Quality
     runs-on: ubuntu-latest
+    env:
+      FACTORYPILOT_ENVIRONMENT: test
+      FACTORYPILOT_LOG_JSON: 'false'
+      FACTORYPILOT_HEALTHCHECK_DATABASE: 'false'
+      FACTORYPILOT_HEALTHCHECK_REDIS: 'false'
+      FACTORYPILOT_DATABASE_URL: postgresql+asyncpg://factorypilot:factorypilot@127.0.0.1:5432/factorypilot
+    services:
+      postgres:
+        image: pgvector/pgvector:0.8.6-pg18
+        env:
+          POSTGRES_USER: factorypilot
+          POSTGRES_PASSWORD: factorypilot
+          POSTGRES_DB: factorypilot
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U factorypilot -d factorypilot"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
     defaults:
       run:
         working-directory: apps/api
@@ -40,6 +60,9 @@ jobs:
 
       - name: mypy
         run: uv run mypy app
+
+      - name: Apply database migrations
+        run: uv run alembic upgrade head
 
       - name: pytest
         run: uv run pytest

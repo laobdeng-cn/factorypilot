@@ -11,6 +11,7 @@ FactoryPilot 架构文档与 ADR 索引。
 - [005 Docker Compose Development Environment](./005-compose-development-environment.md)
 - [006 CI and Code Quality](./006-ci-and-code-quality.md)
 - [007 System Architecture Baseline](./007-system-architecture.md)
+- [008 Enterprise Structure Foundation](./008-enterprise-structure-foundation.md)
 
 ## Architecture Decision Records
 
