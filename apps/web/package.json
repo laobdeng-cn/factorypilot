@@ -4,12 +4,13 @@
   "private": true,
   "description": "FactoryPilot Ant Design Pro frontend",
   "scripts": {
+    "setup": "max setup",
     "dev": "max dev --port 8001",
     "start": "max dev --port 8001",
     "build": "max build",
     "preview": "max preview --port 8001",
     "lint": "biome lint src config",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "max setup && tsc --noEmit",
     "test": "vitest run"
   },
   "dependencies": {
