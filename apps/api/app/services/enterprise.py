@@ -138,7 +138,9 @@ async def list_plants(
         filters.append(Plant.organization_id == organization_id)
     if is_active is not None:
         filters.append(Plant.is_active == is_active)
-    total = int((await session.scalar(select(func.count()).select_from(Plant).where(*filters))) or 0)
+    total = int(
+        (await session.scalar(select(func.count()).select_from(Plant).where(*filters))) or 0
+    )
     rows = list(
         (
             await session.scalars(

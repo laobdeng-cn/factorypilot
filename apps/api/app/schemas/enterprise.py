@@ -1,13 +1,10 @@
 from datetime import datetime
-from typing import Generic, TypeVar
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
-T = TypeVar("T")
 
-
-class Page(BaseModel, Generic[T]):
+class Page[T](BaseModel):
     items: list[T]
     page: int
     page_size: int
