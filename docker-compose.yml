@@ -11,7 +11,7 @@ services:
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
-      - factorypilot_postgres_data:/var/lib/postgresql/data
+      - factorypilot_postgres_data:/var/lib/postgresql
     healthcheck:
       test:
         [
