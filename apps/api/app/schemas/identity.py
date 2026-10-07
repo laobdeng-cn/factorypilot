@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -60,6 +61,29 @@ class LoginRequest(BaseModel):
     password: str = Field(min_length=1, max_length=128)
 
 
-class LoginResponse(BaseModel):
+class RefreshRequest(BaseModel):
+    refresh_token: str = Field(min_length=32)
+
+
+class TokenPairResponse(BaseModel):
+    token_type: Literal["bearer"] = "bearer"
+    access_token: str
+    expires_in: int
+    refresh_token: str
+    refresh_expires_in: int
+    user: UserRead
+
+
+class LoginResponse(TokenPairResponse):
     authenticated: bool = True
+
+
+class CurrentUserResponse(BaseModel):
+    session_id: UUID
+    user_id: UUID
+    organization_id: UUID
+    department_id: UUID | None
+    primary_plant_id: UUID | None
+    username: str
+    display_name: str
     user: UserRead
