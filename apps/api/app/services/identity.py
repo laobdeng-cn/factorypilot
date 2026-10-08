@@ -2,11 +2,12 @@ from datetime import UTC, datetime, timedelta
 from math import ceil
 from uuid import UUID
 
-from sqlalchemy import func, or_, select, update
+from sqlalchemy import false, func, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.elements import ColumnElement
 
+from app.core.data_scope import DataScopeContext, DataScopeType
 from app.core.errors import AppError
 from app.core.security import hash_password, password_needs_rehash, verify_password
 from app.models.auth import AuthSession
@@ -52,6 +53,18 @@ def _hash_password_or_error(password: str) -> str:
         ) from exc
 
 
+def _raise_scope_denied(data_scope: DataScopeContext, resource_type: str = "user") -> None:
+    raise AppError(
+        code="auth.data_scope_denied",
+        message="Target resource is outside current data scope",
+        status_code=403,
+        details={
+            "resource_type": resource_type,
+            "scope_type": data_scope.scope_type.value,
+        },
+    )
+
+
 async def _commit_or_conflict(session: AsyncSession) -> None:
     try:
         await session.commit()
@@ -75,7 +88,7 @@ async def _revoke_user_sessions(
     )
 
 
-async def _validate_user_scope(
+async def _validate_user_structure(
     session: AsyncSession,
     *,
     organization_id: UUID,
@@ -113,11 +126,62 @@ async def _validate_user_scope(
             )
 
 
-async def get_user(session: AsyncSession, user_id: UUID) -> User:
+async def get_user(
+    session: AsyncSession,
+    user_id: UUID,
+    *,
+    data_scope: DataScopeContext | None = None,
+    for_write: bool = False,
+) -> User:
     entity = await session.get(User, user_id)
     if entity is None:
         raise AppError(code="user.not_found", message="User not found", status_code=404)
+    if data_scope is not None and not data_scope.can_access_user(
+        user_id=entity.id,
+        organization_id=entity.organization_id,
+        primary_plant_id=entity.primary_plant_id,
+        department_id=entity.department_id,
+    ):
+        if for_write:
+            _raise_scope_denied(data_scope)
+        raise AppError(code="user.not_found", message="User not found", status_code=404)
     return entity
+
+
+def _append_data_scope_filter(
+    filters: list[ColumnElement[bool]], data_scope: DataScopeContext
+) -> None:
+    if data_scope.scope_type is DataScopeType.GLOBAL:
+        return
+    if data_scope.scope_type is DataScopeType.ORGANIZATION:
+        filters.append(User.organization_id == data_scope.organization_id)
+        return
+    if data_scope.scope_type is DataScopeType.PLANT:
+        if data_scope.primary_plant_id is None:
+            filters.append(User.id == data_scope.user_id)
+        else:
+            filters.append(
+                or_(
+                    User.id == data_scope.user_id,
+                    User.primary_plant_id == data_scope.primary_plant_id,
+                )
+            )
+        return
+    if data_scope.scope_type is DataScopeType.DEPARTMENT:
+        if data_scope.department_id is None:
+            filters.append(User.id == data_scope.user_id)
+        else:
+            filters.append(
+                or_(
+                    User.id == data_scope.user_id,
+                    User.department_id == data_scope.department_id,
+                )
+            )
+        return
+    if data_scope.scope_type is DataScopeType.SELF:
+        filters.append(User.id == data_scope.user_id)
+        return
+    filters.append(false())
 
 
 async def list_users(
@@ -130,8 +194,11 @@ async def list_users(
     primary_plant_id: UUID | None,
     is_active: bool | None,
     q: str | None,
+    data_scope: DataScopeContext | None = None,
 ) -> Page[UserRead]:
     filters: list[ColumnElement[bool]] = []
+    if data_scope is not None:
+        _append_data_scope_filter(filters, data_scope)
     if organization_id is not None:
         filters.append(User.organization_id == organization_id)
     if department_id is not None:
@@ -174,8 +241,19 @@ async def list_users(
     )
 
 
-async def create_user(session: AsyncSession, payload: UserCreate) -> User:
-    await _validate_user_scope(
+async def create_user(
+    session: AsyncSession,
+    payload: UserCreate,
+    *,
+    data_scope: DataScopeContext | None = None,
+) -> User:
+    if data_scope is not None and not data_scope.can_create_user(
+        organization_id=payload.organization_id,
+        primary_plant_id=payload.primary_plant_id,
+        department_id=payload.department_id,
+    ):
+        _raise_scope_denied(data_scope)
+    await _validate_user_structure(
         session,
         organization_id=payload.organization_id,
         department_id=payload.department_id,
@@ -199,13 +277,27 @@ async def create_user(session: AsyncSession, payload: UserCreate) -> User:
     return entity
 
 
-async def update_user(session: AsyncSession, user_id: UUID, payload: UserUpdate) -> User:
-    entity = await get_user(session, user_id)
+async def update_user(
+    session: AsyncSession,
+    user_id: UUID,
+    payload: UserUpdate,
+    *,
+    data_scope: DataScopeContext | None = None,
+) -> User:
+    entity = await get_user(session, user_id, data_scope=data_scope, for_write=True)
     data = payload.model_dump(exclude_unset=True)
 
     next_department_id = data.get("department_id", entity.department_id)
     next_primary_plant_id = data.get("primary_plant_id", entity.primary_plant_id)
-    await _validate_user_scope(
+    if data_scope is not None and (
+        "department_id" in data or "primary_plant_id" in data
+    ) and not data_scope.can_create_user(
+        organization_id=entity.organization_id,
+        primary_plant_id=next_primary_plant_id,
+        department_id=next_department_id,
+    ):
+        _raise_scope_denied(data_scope)
+    await _validate_user_structure(
         session,
         organization_id=entity.organization_id,
         department_id=next_department_id,
@@ -235,8 +327,14 @@ async def update_user(session: AsyncSession, user_id: UUID, payload: UserUpdate)
     return entity
 
 
-async def change_password(session: AsyncSession, user_id: UUID, new_password: str) -> User:
-    entity = await get_user(session, user_id)
+async def change_password(
+    session: AsyncSession,
+    user_id: UUID,
+    new_password: str,
+    *,
+    data_scope: DataScopeContext | None = None,
+) -> User:
+    entity = await get_user(session, user_id, data_scope=data_scope, for_write=True)
     entity.password_hash = _hash_password_or_error(new_password)
     entity.failed_login_count = 0
     entity.locked_until = None

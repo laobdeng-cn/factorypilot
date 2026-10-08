@@ -7,13 +7,14 @@ from fastapi import Depends
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.data_scope import DataScopeContext
 from app.core.errors import AppError
 from app.core.tokens import TokenClaims, decode_token
 from app.db.session import get_db_session
 from app.models.auth import AuthSession
 from app.models.user import User
 from app.services.auth import get_active_session
-from app.services.rbac import load_authorization
+from app.services.rbac import load_authorization, load_data_scope
 
 bearer_scheme = HTTPBearer(auto_error=False)
 
@@ -25,6 +26,7 @@ class CurrentUser:
     claims: TokenClaims
     role_codes: frozenset[str]
     permission_codes: frozenset[str]
+    data_scope: DataScopeContext
 
     @property
     def user_id(self) -> UUID:
@@ -78,12 +80,14 @@ async def get_current_user(credentials: CredentialsDep, session: SessionDep) -> 
             status_code=403,
         )
     role_codes, permission_codes = await load_authorization(session, user.id)
+    data_scope = await load_data_scope(session, user)
     return CurrentUser(
         user=user,
         auth_session=auth_session,
         claims=claims,
         role_codes=role_codes,
         permission_codes=permission_codes,
+        data_scope=data_scope,
     )
 
 

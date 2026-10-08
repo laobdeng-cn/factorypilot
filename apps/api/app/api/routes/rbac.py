@@ -11,9 +11,13 @@ from app.schemas.rbac import (
     BootstrapAdminResponse,
     PermissionRead,
     RoleCreate,
+    RoleDataScopeRead,
+    RoleDataScopeUpdate,
     RolePermissionsUpdate,
     RoleRead,
     RoleUpdate,
+    UserDataScopeRead,
+    UserDataScopeUpdate,
     UserRolesRead,
     UserRolesUpdate,
 )
@@ -31,6 +35,12 @@ UserRoleReadDep = Annotated[
 ]
 UserRoleManageDep = Annotated[
     CurrentUser, Depends(require_permission("rbac.user_role.manage"))
+]
+DataScopeReadDep = Annotated[
+    CurrentUser, Depends(require_permission("rbac.data_scope.read"))
+]
+DataScopeManageDep = Annotated[
+    CurrentUser, Depends(require_permission("rbac.data_scope.manage"))
 ]
 
 
@@ -78,25 +88,19 @@ async def list_roles(session: SessionDep, actor: RoleReadDep) -> list[RoleRead]:
 async def create_role(
     payload: RoleCreate, session: SessionDep, actor: RoleManageDep
 ) -> RoleRead:
-    return await service.create_role(session, actor.organization_id, payload)
+    return await service.create_role(
+        session,
+        actor.organization_id,
+        payload,
+        actor_user_id=actor.user_id,
+        actor_data_scope=actor.data_scope,
+    )
 
 
 @router.get("/roles/{role_id}", response_model=RoleRead, summary="角色详情")
 async def get_role(role_id: UUID, session: SessionDep, actor: RoleReadDep) -> RoleRead:
     role = await service.get_role(session, role_id, actor.organization_id)
-    permission_codes = await service._role_permission_codes(session, role.id)
-    return RoleRead(
-        id=role.id,
-        organization_id=role.organization_id,
-        code=role.code,
-        name=role.name,
-        description=role.description,
-        is_system=role.is_system,
-        is_active=role.is_active,
-        permission_codes=permission_codes,
-        created_at=role.created_at,
-        updated_at=role.updated_at,
-    )
+    return await service._role_read(session, role)
 
 
 @router.patch("/roles/{role_id}", response_model=RoleRead, summary="更新角色")
@@ -129,6 +133,44 @@ async def set_role_permissions(
 
 
 @router.get(
+    "/roles/{role_id}/data-scope",
+    response_model=RoleDataScopeRead,
+    summary="角色数据范围",
+)
+async def get_role_data_scope(
+    role_id: UUID,
+    session: SessionDep,
+    actor: DataScopeReadDep,
+) -> RoleDataScopeRead:
+    return await service.get_role_data_scope(
+        session,
+        role_id,
+        actor.organization_id,
+    )
+
+
+@router.put(
+    "/roles/{role_id}/data-scope",
+    response_model=RoleDataScopeRead,
+    summary="替换角色数据范围",
+)
+async def set_role_data_scope(
+    role_id: UUID,
+    payload: RoleDataScopeUpdate,
+    session: SessionDep,
+    actor: DataScopeManageDep,
+) -> RoleDataScopeRead:
+    return await service.set_role_data_scope(
+        session,
+        role_id,
+        actor.organization_id,
+        payload.scope_type,
+        actor_user_id=actor.user_id,
+        actor_data_scope=actor.data_scope,
+    )
+
+
+@router.get(
     "/users/{user_id}/roles",
     response_model=UserRolesRead,
     summary="用户角色列表",
@@ -139,8 +181,7 @@ async def get_user_roles(
     return await service.get_user_roles(
         session,
         user_id,
-        actor_organization_id=actor.organization_id,
-        actor_role_codes=actor.role_codes,
+        actor_data_scope=actor.data_scope,
     )
 
 
@@ -160,6 +201,42 @@ async def set_user_roles(
         user_id,
         payload.role_ids,
         actor_user_id=actor.user_id,
-        actor_organization_id=actor.organization_id,
-        actor_role_codes=actor.role_codes,
+        actor_data_scope=actor.data_scope,
+    )
+
+
+@router.get(
+    "/users/{user_id}/data-scope",
+    response_model=UserDataScopeRead,
+    summary="用户有效数据范围",
+)
+async def get_user_data_scope(
+    user_id: UUID,
+    session: SessionDep,
+    actor: DataScopeReadDep,
+) -> UserDataScopeRead:
+    return await service.get_user_data_scope(
+        session,
+        user_id,
+        actor_data_scope=actor.data_scope,
+    )
+
+
+@router.put(
+    "/users/{user_id}/data-scope",
+    response_model=UserDataScopeRead,
+    summary="设置用户数据范围覆盖",
+)
+async def set_user_data_scope(
+    user_id: UUID,
+    payload: UserDataScopeUpdate,
+    session: SessionDep,
+    actor: DataScopeManageDep,
+) -> UserDataScopeRead:
+    return await service.set_user_data_scope(
+        session,
+        user_id,
+        payload.scope_type,
+        actor_user_id=actor.user_id,
+        actor_data_scope=actor.data_scope,
     )

@@ -15,6 +15,7 @@ FactoryPilot 架构文档与 ADR 索引。
 - [009 User + Password Authentication](./009-user-password-authentication.md)
 - [010 JWT Session Authentication](./010-jwt-session-authentication.md)
 - [011 RBAC + API Authorization](./011-rbac-api-authorization.md)
+- [012 Hierarchical Data Scope](./012-data-scope.md)
 
 ## Architecture Decision Records
 

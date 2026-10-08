@@ -3,6 +3,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from app.core.data_scope import DataScopeType
 from app.schemas.identity import UserRead
 
 
@@ -23,6 +24,7 @@ class RoleCreate(BaseModel):
     code: str = Field(min_length=3, max_length=64, pattern=r"^[a-z0-9._-]+$")
     name: str = Field(min_length=2, max_length=100)
     description: str | None = Field(default=None, max_length=500)
+    data_scope: DataScopeType = DataScopeType.SELF
 
 
 class RoleUpdate(BaseModel):
@@ -39,6 +41,7 @@ class RoleRead(BaseModel):
     description: str | None
     is_system: bool
     is_active: bool
+    data_scope: DataScopeType
     permission_codes: list[str]
     created_at: datetime
     updated_at: datetime
@@ -46,6 +49,15 @@ class RoleRead(BaseModel):
 
 class RolePermissionsUpdate(BaseModel):
     permission_codes: list[str] = Field(default_factory=list, max_length=100)
+
+
+class RoleDataScopeRead(BaseModel):
+    role_id: UUID
+    scope_type: DataScopeType
+
+
+class RoleDataScopeUpdate(BaseModel):
+    scope_type: DataScopeType
 
 
 class UserRolesRead(BaseModel):
@@ -56,6 +68,18 @@ class UserRolesRead(BaseModel):
 
 class UserRolesUpdate(BaseModel):
     role_ids: list[UUID] = Field(default_factory=list, max_length=50)
+
+
+class UserDataScopeRead(BaseModel):
+    user_id: UUID
+    role_scope_type: DataScopeType
+    override_scope_type: DataScopeType | None
+    effective_scope_type: DataScopeType
+    source: str
+
+
+class UserDataScopeUpdate(BaseModel):
+    scope_type: DataScopeType | None = None
 
 
 class BootstrapAdminRequest(BaseModel):

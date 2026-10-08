@@ -33,7 +33,7 @@ UserManageDep = Annotated[CurrentUser, Depends(require_permission("identity.user
 @router.get("/users", response_model=Page[UserRead], summary="用户列表")
 async def list_users(
     session: SessionDep,
-    _actor: UserReadDep,
+    actor: UserReadDep,
     page: PageParam = 1,
     page_size: PageSizeParam = 20,
     organization_id: UUID | None = None,
@@ -51,6 +51,7 @@ async def list_users(
         primary_plant_id=primary_plant_id,
         is_active=is_active,
         q=q,
+        data_scope=actor.data_scope,
     )
 
 
@@ -60,20 +61,22 @@ async def list_users(
     status_code=status.HTTP_201_CREATED,
     summary="创建用户",
 )
-async def create_user(payload: UserCreate, session: SessionDep, _actor: UserManageDep) -> User:
-    return await service.create_user(session, payload)
+async def create_user(payload: UserCreate, session: SessionDep, actor: UserManageDep) -> User:
+    return await service.create_user(session, payload, data_scope=actor.data_scope)
 
 
 @router.get("/users/{user_id}", response_model=UserRead, summary="用户详情")
-async def get_user(user_id: UUID, session: SessionDep, _actor: UserReadDep) -> User:
-    return await service.get_user(session, user_id)
+async def get_user(user_id: UUID, session: SessionDep, actor: UserReadDep) -> User:
+    return await service.get_user(session, user_id, data_scope=actor.data_scope)
 
 
 @router.patch("/users/{user_id}", response_model=UserRead, summary="更新用户")
 async def update_user(
-    user_id: UUID, payload: UserUpdate, session: SessionDep, _actor: UserManageDep
+    user_id: UUID, payload: UserUpdate, session: SessionDep, actor: UserManageDep
 ) -> User:
-    return await service.update_user(session, user_id, payload)
+    return await service.update_user(
+        session, user_id, payload, data_scope=actor.data_scope
+    )
 
 
 @router.post(
@@ -85,9 +88,14 @@ async def change_password(
     user_id: UUID,
     payload: PasswordChange,
     session: SessionDep,
-    _actor: UserManageDep,
+    actor: UserManageDep,
 ) -> Response:
-    await service.change_password(session, user_id, payload.new_password)
+    await service.change_password(
+        session,
+        user_id,
+        payload.new_password,
+        data_scope=actor.data_scope,
+    )
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
@@ -114,6 +122,8 @@ async def me(current_user: CurrentUserDep) -> CurrentUserResponse:
         display_name=user.display_name,
         role_codes=sorted(current_user.role_codes),
         permission_codes=sorted(current_user.permission_codes),
+        data_scope_type=current_user.data_scope.scope_type,
+        data_scope_source=current_user.data_scope.source,
         user=UserRead.model_validate(user),
     )
 

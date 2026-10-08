@@ -4,6 +4,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.core.data_scope import DataScopeType
+
 
 class UserCreate(BaseModel):
     organization_id: UUID
@@ -88,4 +90,6 @@ class CurrentUserResponse(BaseModel):
     display_name: str
     role_codes: list[str]
     permission_codes: list[str]
+    data_scope_type: DataScopeType
+    data_scope_source: str
     user: UserRead

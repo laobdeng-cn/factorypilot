@@ -4,8 +4,21 @@ from sqlalchemy import delete, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.data_scope import (
+    DataScopeContext,
+    DataScopeType,
+    most_permissive,
+    scope_rank,
+)
 from app.core.errors import AppError
-from app.models.rbac import Permission, Role, RolePermission, UserRole
+from app.models.rbac import (
+    Permission,
+    Role,
+    RoleDataScope,
+    RolePermission,
+    UserDataScopeOverride,
+    UserRole,
+)
 from app.models.user import User
 from app.schemas.enterprise import OrganizationCreate
 from app.schemas.identity import UserCreate, UserRead
@@ -14,14 +27,28 @@ from app.schemas.rbac import (
     BootstrapAdminResponse,
     PermissionRead,
     RoleCreate,
+    RoleDataScopeRead,
     RoleRead,
     RoleUpdate,
+    UserDataScopeRead,
     UserRolesRead,
 )
 from app.services import enterprise as enterprise_service
 from app.services import identity as identity_service
 
 SYSTEM_ADMIN_ROLE_CODE = "system_admin"
+
+
+def _raise_scope_denied(data_scope: DataScopeContext, resource_type: str) -> None:
+    raise AppError(
+        code="auth.data_scope_denied",
+        message="Target resource is outside current data scope",
+        status_code=403,
+        details={
+            "resource_type": resource_type,
+            "scope_type": data_scope.scope_type.value,
+        },
+    )
 
 
 async def load_authorization(
@@ -53,6 +80,47 @@ async def load_authorization(
         ).all()
     )
     return role_codes, permission_codes
+
+
+async def _load_role_scope_type(session: AsyncSession, role_id: UUID) -> DataScopeType:
+    value = await session.scalar(
+        select(RoleDataScope.scope_type).where(RoleDataScope.role_id == role_id)
+    )
+    return DataScopeType(value) if value is not None else DataScopeType.SELF
+
+
+async def _load_user_role_scope(
+    session: AsyncSession, user_id: UUID
+) -> DataScopeType:
+    values = list(
+        (
+            await session.scalars(
+                select(RoleDataScope.scope_type)
+                .join(Role, Role.id == RoleDataScope.role_id)
+                .join(UserRole, UserRole.role_id == Role.id)
+                .where(UserRole.user_id == user_id, Role.is_active.is_(True))
+            )
+        ).all()
+    )
+    return most_permissive([DataScopeType(value) for value in values])
+
+
+async def load_data_scope(session: AsyncSession, user: User) -> DataScopeContext:
+    override = await session.get(UserDataScopeOverride, user.id)
+    if override is not None:
+        scope_type = DataScopeType(override.scope_type)
+        source = "user_override"
+    else:
+        scope_type = await _load_user_role_scope(session, user.id)
+        source = "role" if scope_type is not DataScopeType.SELF else "role_or_default"
+    return DataScopeContext(
+        scope_type=scope_type,
+        user_id=user.id,
+        organization_id=user.organization_id,
+        primary_plant_id=user.primary_plant_id,
+        department_id=user.department_id,
+        source=source,
+    )
 
 
 async def list_permissions(session: AsyncSession) -> list[PermissionRead]:
@@ -90,6 +158,7 @@ async def _role_read(session: AsyncSession, role: Role) -> RoleRead:
         description=role.description,
         is_system=role.is_system,
         is_active=role.is_active,
+        data_scope=await _load_role_scope_type(session, role.id),
         permission_codes=await _role_permission_codes(session, role.id),
         created_at=role.created_at,
         updated_at=role.updated_at,
@@ -121,8 +190,15 @@ async def get_role(session: AsyncSession, role_id: UUID, organization_id: UUID) 
 
 
 async def create_role(
-    session: AsyncSession, organization_id: UUID, payload: RoleCreate
+    session: AsyncSession,
+    organization_id: UUID,
+    payload: RoleCreate,
+    *,
+    actor_user_id: UUID,
+    actor_data_scope: DataScopeContext,
 ) -> RoleRead:
+    if scope_rank(payload.data_scope) > scope_rank(actor_data_scope.scope_type):
+        _raise_scope_denied(actor_data_scope, "role_data_scope")
     role = Role(
         organization_id=organization_id,
         code=payload.code.strip().lower(),
@@ -133,6 +209,14 @@ async def create_role(
     )
     session.add(role)
     try:
+        await session.flush()
+        session.add(
+            RoleDataScope(
+                role_id=role.id,
+                scope_type=payload.data_scope.value,
+                updated_by_user_id=actor_user_id,
+            )
+        )
         await session.commit()
     except IntegrityError as exc:
         await session.rollback()
@@ -168,6 +252,51 @@ async def update_role(
     await session.commit()
     await session.refresh(role)
     return await _role_read(session, role)
+
+
+async def get_role_data_scope(
+    session: AsyncSession,
+    role_id: UUID,
+    organization_id: UUID,
+) -> RoleDataScopeRead:
+    role = await get_role(session, role_id, organization_id)
+    return RoleDataScopeRead(
+        role_id=role.id,
+        scope_type=await _load_role_scope_type(session, role.id),
+    )
+
+
+async def set_role_data_scope(
+    session: AsyncSession,
+    role_id: UUID,
+    organization_id: UUID,
+    scope_type: DataScopeType,
+    *,
+    actor_user_id: UUID,
+    actor_data_scope: DataScopeContext,
+) -> RoleDataScopeRead:
+    role = await get_role(session, role_id, organization_id)
+    if role.is_system:
+        raise AppError(
+            code="rbac.system_role_immutable",
+            message="System role data scope cannot be modified",
+            status_code=409,
+        )
+    if scope_rank(scope_type) > scope_rank(actor_data_scope.scope_type):
+        _raise_scope_denied(actor_data_scope, "role_data_scope")
+    record = await session.get(RoleDataScope, role.id)
+    if record is None:
+        record = RoleDataScope(
+            role_id=role.id,
+            scope_type=scope_type.value,
+            updated_by_user_id=actor_user_id,
+        )
+        session.add(record)
+    else:
+        record.scope_type = scope_type.value
+        record.updated_by_user_id = actor_user_id
+    await session.commit()
+    return RoleDataScopeRead(role_id=role.id, scope_type=scope_type)
 
 
 async def set_role_permissions(
@@ -216,16 +345,10 @@ async def set_role_permissions(
 async def get_user_roles(
     session: AsyncSession,
     user_id: UUID,
-    actor_organization_id: UUID,
-    actor_role_codes: frozenset[str],
+    *,
+    actor_data_scope: DataScopeContext,
 ) -> UserRolesRead:
-    user = await identity_service.get_user(session, user_id)
-    if (
-        SYSTEM_ADMIN_ROLE_CODE not in actor_role_codes
-        and user.organization_id != actor_organization_id
-    ):
-        raise AppError(code="user.not_found", message="User not found", status_code=404)
-
+    user = await identity_service.get_user(session, user_id, data_scope=actor_data_scope)
     roles = list(
         (
             await session.scalars(
@@ -249,15 +372,11 @@ async def set_user_roles(
     role_ids: list[UUID],
     *,
     actor_user_id: UUID,
-    actor_organization_id: UUID,
-    actor_role_codes: frozenset[str],
+    actor_data_scope: DataScopeContext,
 ) -> UserRolesRead:
-    user = await identity_service.get_user(session, user_id)
-    if (
-        SYSTEM_ADMIN_ROLE_CODE not in actor_role_codes
-        and user.organization_id != actor_organization_id
-    ):
-        raise AppError(code="user.not_found", message="User not found", status_code=404)
+    user = await identity_service.get_user(
+        session, user_id, data_scope=actor_data_scope, for_write=True
+    )
 
     normalized_ids = sorted(set(role_ids), key=str)
     roles = list(
@@ -280,6 +399,9 @@ async def set_user_roles(
                 message="Role does not belong to target user organization",
                 status_code=409,
             )
+        role_scope = await _load_role_scope_type(session, role.id)
+        if scope_rank(role_scope) > scope_rank(actor_data_scope.scope_type):
+            _raise_scope_denied(actor_data_scope, "role_assignment")
 
     await session.execute(delete(UserRole).where(UserRole.user_id == user.id))
     session.add_all(
@@ -294,8 +416,78 @@ async def set_user_roles(
     return await get_user_roles(
         session,
         user.id,
-        actor_organization_id=actor_organization_id,
-        actor_role_codes=actor_role_codes,
+        actor_data_scope=actor_data_scope,
+    )
+
+
+async def get_user_data_scope(
+    session: AsyncSession,
+    user_id: UUID,
+    *,
+    actor_data_scope: DataScopeContext,
+) -> UserDataScopeRead:
+    user = await identity_service.get_user(session, user_id, data_scope=actor_data_scope)
+    role_scope = await _load_user_role_scope(session, user.id)
+    override = await session.get(UserDataScopeOverride, user.id)
+    effective = await load_data_scope(session, user)
+    return UserDataScopeRead(
+        user_id=user.id,
+        role_scope_type=role_scope,
+        override_scope_type=(
+            DataScopeType(override.scope_type) if override is not None else None
+        ),
+        effective_scope_type=effective.scope_type,
+        source=effective.source,
+    )
+
+
+async def set_user_data_scope(
+    session: AsyncSession,
+    user_id: UUID,
+    scope_type: DataScopeType | None,
+    *,
+    actor_user_id: UUID,
+    actor_data_scope: DataScopeContext,
+) -> UserDataScopeRead:
+    user = await identity_service.get_user(
+        session, user_id, data_scope=actor_data_scope, for_write=True
+    )
+    if scope_type is not None:
+        if scope_rank(scope_type) > scope_rank(actor_data_scope.scope_type):
+            _raise_scope_denied(actor_data_scope, "user_data_scope")
+        if scope_type is DataScopeType.PLANT and user.primary_plant_id is None:
+            raise AppError(
+                code="rbac.data_scope_anchor_missing",
+                message="Plant data scope requires target user primary_plant_id",
+                status_code=422,
+            )
+        if scope_type is DataScopeType.DEPARTMENT and user.department_id is None:
+            raise AppError(
+                code="rbac.data_scope_anchor_missing",
+                message="Department data scope requires target user department_id",
+                status_code=422,
+            )
+
+    record = await session.get(UserDataScopeOverride, user.id)
+    if scope_type is None:
+        if record is not None:
+            await session.delete(record)
+    elif record is None:
+        session.add(
+            UserDataScopeOverride(
+                user_id=user.id,
+                scope_type=scope_type.value,
+                assigned_by_user_id=actor_user_id,
+            )
+        )
+    else:
+        record.scope_type = scope_type.value
+        record.assigned_by_user_id = actor_user_id
+    await session.commit()
+    return await get_user_data_scope(
+        session,
+        user.id,
+        actor_data_scope=actor_data_scope,
     )
 
 

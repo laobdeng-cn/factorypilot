@@ -1,11 +1,12 @@
 from math import ceil
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import false, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.elements import ColumnElement
 
+from app.core.data_scope import DataScopeContext, DataScopeType
 from app.core.errors import AppError
 from app.models.enterprise import Department, Organization, Plant
 from app.schemas.enterprise import (
@@ -30,6 +31,18 @@ def _total_pages(total: int, page_size: int) -> int:
     return ceil(total / page_size) if total else 0
 
 
+def _raise_scope_denied(data_scope: DataScopeContext, resource_type: str) -> None:
+    raise AppError(
+        code="auth.data_scope_denied",
+        message="Target resource is outside current data scope",
+        status_code=403,
+        details={
+            "resource_type": resource_type,
+            "scope_type": data_scope.scope_type.value,
+        },
+    )
+
+
 async def _commit_or_conflict(
     session: AsyncSession, *, code: str, message: str
 ) -> None:
@@ -40,9 +53,21 @@ async def _commit_or_conflict(
         raise AppError(code=code, message=message, status_code=409) from exc
 
 
-async def get_organization(session: AsyncSession, organization_id: UUID) -> Organization:
+async def get_organization(
+    session: AsyncSession,
+    organization_id: UUID,
+    *,
+    data_scope: DataScopeContext | None = None,
+    for_write: bool = False,
+) -> Organization:
     entity = await session.get(Organization, organization_id)
     if entity is None:
+        raise AppError(
+            code="organization.not_found", message="Organization not found", status_code=404
+        )
+    if data_scope is not None and not data_scope.can_access_organization(entity.id):
+        if for_write:
+            _raise_scope_denied(data_scope, "organization")
         raise AppError(
             code="organization.not_found", message="Organization not found", status_code=404
         )
@@ -50,9 +75,16 @@ async def get_organization(session: AsyncSession, organization_id: UUID) -> Orga
 
 
 async def list_organizations(
-    session: AsyncSession, *, page: int, page_size: int, is_active: bool | None
+    session: AsyncSession,
+    *,
+    page: int,
+    page_size: int,
+    is_active: bool | None,
+    data_scope: DataScopeContext | None = None,
 ) -> Page[OrganizationRead]:
     filters: list[ColumnElement[bool]] = []
+    if data_scope is not None and data_scope.scope_type is not DataScopeType.GLOBAL:
+        filters.append(Organization.id == data_scope.organization_id)
     if is_active is not None:
         filters.append(Organization.is_active == is_active)
     total = int(
@@ -79,8 +111,13 @@ async def list_organizations(
 
 
 async def create_organization(
-    session: AsyncSession, payload: OrganizationCreate
+    session: AsyncSession,
+    payload: OrganizationCreate,
+    *,
+    data_scope: DataScopeContext | None = None,
 ) -> Organization:
+    if data_scope is not None and not data_scope.can_create_organization():
+        _raise_scope_denied(data_scope, "organization")
     entity = Organization(
         code=_normalize_code(payload.code),
         name=payload.name.strip(),
@@ -98,9 +135,15 @@ async def create_organization(
 
 
 async def update_organization(
-    session: AsyncSession, organization_id: UUID, payload: OrganizationUpdate
+    session: AsyncSession,
+    organization_id: UUID,
+    payload: OrganizationUpdate,
+    *,
+    data_scope: DataScopeContext | None = None,
 ) -> Organization:
-    entity = await get_organization(session, organization_id)
+    entity = await get_organization(
+        session, organization_id, data_scope=data_scope, for_write=True
+    )
     data = payload.model_dump(exclude_unset=True, exclude_none=True)
     if "code" in data:
         data["code"] = _normalize_code(data["code"])
@@ -118,9 +161,21 @@ async def update_organization(
     return entity
 
 
-async def get_plant(session: AsyncSession, plant_id: UUID) -> Plant:
+async def get_plant(
+    session: AsyncSession,
+    plant_id: UUID,
+    *,
+    data_scope: DataScopeContext | None = None,
+    for_write: bool = False,
+) -> Plant:
     entity = await session.get(Plant, plant_id)
     if entity is None:
+        raise AppError(code="plant.not_found", message="Plant not found", status_code=404)
+    if data_scope is not None and not data_scope.can_access_plant(
+        plant_id=entity.id, organization_id=entity.organization_id
+    ):
+        if for_write:
+            _raise_scope_denied(data_scope, "plant")
         raise AppError(code="plant.not_found", message="Plant not found", status_code=404)
     return entity
 
@@ -132,8 +187,17 @@ async def list_plants(
     page_size: int,
     organization_id: UUID | None,
     is_active: bool | None,
+    data_scope: DataScopeContext | None = None,
 ) -> Page[PlantRead]:
     filters: list[ColumnElement[bool]] = []
+    if data_scope is not None:
+        if data_scope.scope_type is DataScopeType.ORGANIZATION:
+            filters.append(Plant.organization_id == data_scope.organization_id)
+        elif data_scope.scope_type is not DataScopeType.GLOBAL:
+            if data_scope.primary_plant_id is None:
+                filters.append(false())
+            else:
+                filters.append(Plant.id == data_scope.primary_plant_id)
     if organization_id is not None:
         filters.append(Plant.organization_id == organization_id)
     if is_active is not None:
@@ -161,7 +225,16 @@ async def list_plants(
     )
 
 
-async def create_plant(session: AsyncSession, payload: PlantCreate) -> Plant:
+async def create_plant(
+    session: AsyncSession,
+    payload: PlantCreate,
+    *,
+    data_scope: DataScopeContext | None = None,
+) -> Plant:
+    if data_scope is not None and not data_scope.can_create_plant(
+        organization_id=payload.organization_id
+    ):
+        _raise_scope_denied(data_scope, "plant")
     await get_organization(session, payload.organization_id)
     entity = Plant(
         organization_id=payload.organization_id,
@@ -183,9 +256,13 @@ async def create_plant(session: AsyncSession, payload: PlantCreate) -> Plant:
 
 
 async def update_plant(
-    session: AsyncSession, plant_id: UUID, payload: PlantUpdate
+    session: AsyncSession,
+    plant_id: UUID,
+    payload: PlantUpdate,
+    *,
+    data_scope: DataScopeContext | None = None,
 ) -> Plant:
-    entity = await get_plant(session, plant_id)
+    entity = await get_plant(session, plant_id, data_scope=data_scope, for_write=True)
     data = payload.model_dump(exclude_unset=True, exclude_none=True)
     if "code" in data:
         data["code"] = _normalize_code(data["code"])
@@ -201,16 +278,32 @@ async def update_plant(
     return entity
 
 
-async def get_department(session: AsyncSession, department_id: UUID) -> Department:
+async def get_department(
+    session: AsyncSession,
+    department_id: UUID,
+    *,
+    data_scope: DataScopeContext | None = None,
+    for_write: bool = False,
+) -> Department:
     entity = await session.get(Department, department_id)
     if entity is None:
+        raise AppError(
+            code="department.not_found", message="Department not found", status_code=404
+        )
+    if data_scope is not None and not data_scope.can_access_department(
+        department_id=entity.id,
+        organization_id=entity.organization_id,
+        plant_id=entity.plant_id,
+    ):
+        if for_write:
+            _raise_scope_denied(data_scope, "department")
         raise AppError(
             code="department.not_found", message="Department not found", status_code=404
         )
     return entity
 
 
-async def _validate_department_scope(
+async def _validate_department_structure(
     session: AsyncSession,
     *,
     organization_id: UUID,
@@ -252,8 +345,22 @@ async def list_departments(
     plant_id: UUID | None,
     parent_id: UUID | None,
     is_active: bool | None,
+    data_scope: DataScopeContext | None = None,
 ) -> Page[DepartmentRead]:
     filters: list[ColumnElement[bool]] = []
+    if data_scope is not None:
+        if data_scope.scope_type is DataScopeType.ORGANIZATION:
+            filters.append(Department.organization_id == data_scope.organization_id)
+        elif data_scope.scope_type is DataScopeType.PLANT:
+            if data_scope.primary_plant_id is None:
+                filters.append(false())
+            else:
+                filters.append(Department.plant_id == data_scope.primary_plant_id)
+        elif data_scope.scope_type is not DataScopeType.GLOBAL:
+            if data_scope.department_id is None:
+                filters.append(false())
+            else:
+                filters.append(Department.id == data_scope.department_id)
     if organization_id is not None:
         filters.append(Department.organization_id == organization_id)
     if plant_id is not None:
@@ -285,8 +392,20 @@ async def list_departments(
     )
 
 
-async def create_department(session: AsyncSession, payload: DepartmentCreate) -> Department:
-    await _validate_department_scope(
+async def create_department(
+    session: AsyncSession,
+    payload: DepartmentCreate,
+    *,
+    data_scope: DataScopeContext | None = None,
+) -> Department:
+    if data_scope is not None and not data_scope.can_create_department(
+        organization_id=payload.organization_id,
+        plant_id=payload.plant_id,
+    ):
+        _raise_scope_denied(data_scope, "department")
+    if data_scope is not None and payload.parent_id is not None:
+        await get_department(session, payload.parent_id, data_scope=data_scope)
+    await _validate_department_structure(
         session,
         organization_id=payload.organization_id,
         plant_id=payload.plant_id,
@@ -313,13 +432,27 @@ async def create_department(session: AsyncSession, payload: DepartmentCreate) ->
 
 
 async def update_department(
-    session: AsyncSession, department_id: UUID, payload: DepartmentUpdate
+    session: AsyncSession,
+    department_id: UUID,
+    payload: DepartmentUpdate,
+    *,
+    data_scope: DataScopeContext | None = None,
 ) -> Department:
-    entity = await get_department(session, department_id)
+    entity = await get_department(
+        session, department_id, data_scope=data_scope, for_write=True
+    )
     data = payload.model_dump(exclude_unset=True, exclude_none=True)
     next_plant_id = data.get("plant_id", entity.plant_id)
     next_parent_id = data.get("parent_id", entity.parent_id)
-    await _validate_department_scope(
+    if data_scope is not None and not data_scope.can_access_department(
+        department_id=entity.id,
+        organization_id=entity.organization_id,
+        plant_id=next_plant_id,
+    ):
+        _raise_scope_denied(data_scope, "department")
+    if data_scope is not None and next_parent_id is not None:
+        await get_department(session, next_parent_id, data_scope=data_scope)
+    await _validate_department_structure(
         session,
         organization_id=entity.organization_id,
         plant_id=next_plant_id,

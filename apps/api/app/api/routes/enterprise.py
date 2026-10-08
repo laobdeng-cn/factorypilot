@@ -46,13 +46,17 @@ DepartmentManageDep = Annotated[
 @router.get("/organizations", response_model=Page[OrganizationRead], summary="组织列表")
 async def list_organizations(
     session: SessionDep,
-    _actor: OrganizationReadDep,
+    actor: OrganizationReadDep,
     page: PageParam = 1,
     page_size: PageSizeParam = 20,
     is_active: bool | None = None,
 ) -> Page[OrganizationRead]:
     return await service.list_organizations(
-        session, page=page, page_size=page_size, is_active=is_active
+        session,
+        page=page,
+        page_size=page_size,
+        is_active=is_active,
+        data_scope=actor.data_scope,
     )
 
 
@@ -63,16 +67,20 @@ async def list_organizations(
     summary="创建组织",
 )
 async def create_organization(
-    payload: OrganizationCreate, session: SessionDep, _actor: OrganizationManageDep
+    payload: OrganizationCreate, session: SessionDep, actor: OrganizationManageDep
 ) -> Organization:
-    return await service.create_organization(session, payload)
+    return await service.create_organization(
+        session, payload, data_scope=actor.data_scope
+    )
 
 
 @router.get("/organizations/{organization_id}", response_model=OrganizationRead, summary="组织详情")
 async def get_organization(
-    organization_id: UUID, session: SessionDep, _actor: OrganizationReadDep
+    organization_id: UUID, session: SessionDep, actor: OrganizationReadDep
 ) -> Organization:
-    return await service.get_organization(session, organization_id)
+    return await service.get_organization(
+        session, organization_id, data_scope=actor.data_scope
+    )
 
 
 @router.patch(
@@ -82,15 +90,20 @@ async def update_organization(
     organization_id: UUID,
     payload: OrganizationUpdate,
     session: SessionDep,
-    _actor: OrganizationManageDep,
+    actor: OrganizationManageDep,
 ) -> Organization:
-    return await service.update_organization(session, organization_id, payload)
+    return await service.update_organization(
+        session,
+        organization_id,
+        payload,
+        data_scope=actor.data_scope,
+    )
 
 
 @router.get("/plants", response_model=Page[PlantRead], summary="工厂列表")
 async def list_plants(
     session: SessionDep,
-    _actor: PlantReadDep,
+    actor: PlantReadDep,
     page: PageParam = 1,
     page_size: PageSizeParam = 20,
     organization_id: UUID | None = None,
@@ -102,6 +115,7 @@ async def list_plants(
         page_size=page_size,
         organization_id=organization_id,
         is_active=is_active,
+        data_scope=actor.data_scope,
     )
 
 
@@ -112,14 +126,14 @@ async def list_plants(
     summary="创建工厂",
 )
 async def create_plant(
-    payload: PlantCreate, session: SessionDep, _actor: PlantManageDep
+    payload: PlantCreate, session: SessionDep, actor: PlantManageDep
 ) -> Plant:
-    return await service.create_plant(session, payload)
+    return await service.create_plant(session, payload, data_scope=actor.data_scope)
 
 
 @router.get("/plants/{plant_id}", response_model=PlantRead, summary="工厂详情")
-async def get_plant(plant_id: UUID, session: SessionDep, _actor: PlantReadDep) -> Plant:
-    return await service.get_plant(session, plant_id)
+async def get_plant(plant_id: UUID, session: SessionDep, actor: PlantReadDep) -> Plant:
+    return await service.get_plant(session, plant_id, data_scope=actor.data_scope)
 
 
 @router.patch("/plants/{plant_id}", response_model=PlantRead, summary="更新工厂")
@@ -127,15 +141,17 @@ async def update_plant(
     plant_id: UUID,
     payload: PlantUpdate,
     session: SessionDep,
-    _actor: PlantManageDep,
+    actor: PlantManageDep,
 ) -> Plant:
-    return await service.update_plant(session, plant_id, payload)
+    return await service.update_plant(
+        session, plant_id, payload, data_scope=actor.data_scope
+    )
 
 
 @router.get("/departments", response_model=Page[DepartmentRead], summary="部门列表")
 async def list_departments(
     session: SessionDep,
-    _actor: DepartmentReadDep,
+    actor: DepartmentReadDep,
     page: PageParam = 1,
     page_size: PageSizeParam = 20,
     organization_id: UUID | None = None,
@@ -151,6 +167,7 @@ async def list_departments(
         plant_id=plant_id,
         parent_id=parent_id,
         is_active=is_active,
+        data_scope=actor.data_scope,
     )
 
 
@@ -161,16 +178,20 @@ async def list_departments(
     summary="创建部门",
 )
 async def create_department(
-    payload: DepartmentCreate, session: SessionDep, _actor: DepartmentManageDep
+    payload: DepartmentCreate, session: SessionDep, actor: DepartmentManageDep
 ) -> Department:
-    return await service.create_department(session, payload)
+    return await service.create_department(
+        session, payload, data_scope=actor.data_scope
+    )
 
 
 @router.get("/departments/{department_id}", response_model=DepartmentRead, summary="部门详情")
 async def get_department(
-    department_id: UUID, session: SessionDep, _actor: DepartmentReadDep
+    department_id: UUID, session: SessionDep, actor: DepartmentReadDep
 ) -> Department:
-    return await service.get_department(session, department_id)
+    return await service.get_department(
+        session, department_id, data_scope=actor.data_scope
+    )
 
 
 @router.patch("/departments/{department_id}", response_model=DepartmentRead, summary="更新部门")
@@ -178,6 +199,11 @@ async def update_department(
     department_id: UUID,
     payload: DepartmentUpdate,
     session: SessionDep,
-    _actor: DepartmentManageDep,
+    actor: DepartmentManageDep,
 ) -> Department:
-    return await service.update_department(session, department_id, payload)
+    return await service.update_department(
+        session,
+        department_id,
+        payload,
+        data_scope=actor.data_scope,
+    )
