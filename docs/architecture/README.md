@@ -17,6 +17,7 @@ FactoryPilot 架构文档与 ADR 索引。
 - [011 RBAC + API Authorization](./011-rbac-api-authorization.md)
 - [012 Hierarchical Data Scope](./012-data-scope.md)
 - [013 Audit Log + Security Event + Authorization Audit](./013-audit-security-authorization.md)
+- [014 Frontend Authentication + Permission-aware Navigation](./014-frontend-authentication-authorization.md)
 
 ## Architecture Decision Records
 
