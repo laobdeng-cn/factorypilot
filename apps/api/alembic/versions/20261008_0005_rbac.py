@@ -17,12 +17,42 @@ branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
 PERMISSIONS = [
-    ("10000000-0000-0000-0000-000000000001", "enterprise.organization.read", "组织查看", "enterprise"),
-    ("10000000-0000-0000-0000-000000000002", "enterprise.organization.manage", "组织管理", "enterprise"),
-    ("10000000-0000-0000-0000-000000000003", "enterprise.plant.read", "工厂查看", "enterprise"),
-    ("10000000-0000-0000-0000-000000000004", "enterprise.plant.manage", "工厂管理", "enterprise"),
-    ("10000000-0000-0000-0000-000000000005", "enterprise.department.read", "部门查看", "enterprise"),
-    ("10000000-0000-0000-0000-000000000006", "enterprise.department.manage", "部门管理", "enterprise"),
+    (
+        "10000000-0000-0000-0000-000000000001",
+        "enterprise.organization.read",
+        "组织查看",
+        "enterprise",
+    ),
+    (
+        "10000000-0000-0000-0000-000000000002",
+        "enterprise.organization.manage",
+        "组织管理",
+        "enterprise",
+    ),
+    (
+        "10000000-0000-0000-0000-000000000003",
+        "enterprise.plant.read",
+        "工厂查看",
+        "enterprise",
+    ),
+    (
+        "10000000-0000-0000-0000-000000000004",
+        "enterprise.plant.manage",
+        "工厂管理",
+        "enterprise",
+    ),
+    (
+        "10000000-0000-0000-0000-000000000005",
+        "enterprise.department.read",
+        "部门查看",
+        "enterprise",
+    ),
+    (
+        "10000000-0000-0000-0000-000000000006",
+        "enterprise.department.manage",
+        "部门管理",
+        "enterprise",
+    ),
     ("10000000-0000-0000-0000-000000000007", "identity.user.read", "用户查看", "identity"),
     ("10000000-0000-0000-0000-000000000008", "identity.user.manage", "用户管理", "identity"),
     ("10000000-0000-0000-0000-000000000009", "rbac.permission.read", "权限查看", "rbac"),
