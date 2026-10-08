@@ -13,6 +13,7 @@ from app.db.session import get_db_session
 from app.models.auth import AuthSession
 from app.models.user import User
 from app.services.auth import get_active_session
+from app.services.rbac import load_authorization
 
 bearer_scheme = HTTPBearer(auto_error=False)
 
@@ -22,6 +23,8 @@ class CurrentUser:
     user: User
     auth_session: AuthSession
     claims: TokenClaims
+    role_codes: frozenset[str]
+    permission_codes: frozenset[str]
 
     @property
     def user_id(self) -> UUID:
@@ -74,7 +77,33 @@ async def get_current_user(credentials: CredentialsDep, session: SessionDep) -> 
             message="Account is inactive",
             status_code=403,
         )
-    return CurrentUser(user=user, auth_session=auth_session, claims=claims)
+    role_codes, permission_codes = await load_authorization(session, user.id)
+    return CurrentUser(
+        user=user,
+        auth_session=auth_session,
+        claims=claims,
+        role_codes=role_codes,
+        permission_codes=permission_codes,
+    )
 
 
 CurrentUserDep = Annotated[CurrentUser, Depends(get_current_user)]
+
+
+class PermissionChecker:
+    def __init__(self, permission_code: str) -> None:
+        self.permission_code = permission_code
+
+    async def __call__(self, current_user: CurrentUserDep) -> CurrentUser:
+        if self.permission_code not in current_user.permission_codes:
+            raise AppError(
+                code="auth.permission_denied",
+                message="Current user does not have the required permission",
+                status_code=403,
+                details={"required_permission": self.permission_code},
+            )
+        return current_user
+
+
+def require_permission(permission_code: str) -> PermissionChecker:
+    return PermissionChecker(permission_code)
