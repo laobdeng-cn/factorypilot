@@ -4,15 +4,22 @@ export default [
     redirect: '/dashboard',
   },
   {
+    path: '/login',
+    layout: false,
+    component: './Login',
+  },
+  {
     name: '智造总览',
     icon: 'DashboardOutlined',
     path: '/dashboard',
     component: './Dashboard',
+    access: 'authenticated',
   },
   {
     name: '订单履约',
     icon: 'FileDoneOutlined',
     path: '/orders',
+    access: 'authenticated',
     routes: [
       { name: '销售订单', path: '/orders/sales', component: './Placeholder' },
       { name: '交付预测', path: '/orders/forecast', component: './Placeholder' },
@@ -23,6 +30,7 @@ export default [
     name: '生产运营',
     icon: 'ControlOutlined',
     path: '/operations',
+    access: 'authenticated',
     routes: [
       { name: '生产计划', path: '/operations/planning', component: './Placeholder' },
       { name: 'APS 排程', path: '/operations/aps', component: './Placeholder' },
@@ -35,6 +43,7 @@ export default [
     name: '物料与库存',
     icon: 'AppstoreOutlined',
     path: '/materials',
+    access: 'authenticated',
     routes: [
       { name: '物料齐套', path: '/materials/readiness', component: './Placeholder' },
       { name: '缺料分析', path: '/materials/shortage', component: './Placeholder' },
@@ -47,6 +56,7 @@ export default [
     name: '采购与供应',
     icon: 'TruckOutlined',
     path: '/supply',
+    access: 'authenticated',
     routes: [
       { name: '采购订单', path: '/supply/purchase-orders', component: './Placeholder' },
       { name: '供应商', path: '/supply/suppliers', component: './Placeholder' },
@@ -58,6 +68,7 @@ export default [
     name: '质量管理',
     icon: 'SafetyCertificateOutlined',
     path: '/quality',
+    access: 'authenticated',
     routes: [
       { name: '质量异常', path: '/quality/issues', component: './Placeholder' },
       { name: 'Quality Hold', path: '/quality/holds', component: './Placeholder' },
@@ -69,6 +80,7 @@ export default [
     name: '异常管理',
     icon: 'WarningOutlined',
     path: '/exceptions',
+    access: 'authenticated',
     routes: [
       { name: '异常中心', path: '/exceptions/center', component: './Placeholder' },
       { name: '风险预警', path: '/exceptions/alerts', component: './Placeholder' },
@@ -79,6 +91,7 @@ export default [
     name: 'AI 智能决策',
     icon: 'RobotOutlined',
     path: '/ai',
+    access: 'authenticated',
     routes: [
       { name: 'Decision Center', path: '/ai/decisions', component: './Placeholder' },
       { name: 'What-if 推演', path: '/ai/what-if', component: './Placeholder' },
@@ -91,6 +104,7 @@ export default [
     name: '审批中心',
     icon: 'AuditOutlined',
     path: '/approvals',
+    access: 'authenticated',
     routes: [
       { name: '待我审批', path: '/approvals/pending', component: './Placeholder' },
       { name: '我的申请', path: '/approvals/mine', component: './Placeholder' },
@@ -101,6 +115,7 @@ export default [
     name: '基础数据',
     icon: 'DatabaseOutlined',
     path: '/master-data',
+    access: 'authenticated',
     routes: [
       { name: '工厂与产线', path: '/master-data/plants', component: './Placeholder' },
       { name: '设备与工作中心', path: '/master-data/resources', component: './Placeholder' },
@@ -114,12 +129,38 @@ export default [
     name: '系统管理',
     icon: 'SettingOutlined',
     path: '/system',
+    access: 'authenticated',
     routes: [
-      { name: '服务状态', path: '/system/health', component: './SystemHealth' },
-      { name: '用户与组织', path: '/system/organization', component: './Placeholder' },
-      { name: '角色与权限', path: '/system/rbac', component: './Placeholder' },
-      { name: '集成中心', path: '/system/integrations', component: './Placeholder' },
-      { name: '审计日志', path: '/system/audit', component: './Placeholder' },
+      {
+        name: '服务状态',
+        path: '/system/health',
+        component: './SystemHealth',
+        access: 'authenticated',
+      },
+      {
+        name: '用户与组织',
+        path: '/system/organization',
+        component: './Placeholder',
+        access: 'canReadEnterprise',
+      },
+      {
+        name: '角色与权限',
+        path: '/system/rbac',
+        component: './Placeholder',
+        access: 'canReadRbac',
+      },
+      {
+        name: '集成中心',
+        path: '/system/integrations',
+        component: './Placeholder',
+        access: 'authenticated',
+      },
+      {
+        name: '审计日志',
+        path: '/system/audit',
+        component: './Placeholder',
+        access: 'canReadAudit',
+      },
     ],
   },
   {
