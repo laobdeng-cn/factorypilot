@@ -6,6 +6,7 @@ const apiProxyTarget = process.env.FACTORYPILOT_API_PROXY_TARGET ?? 'http://127.
 
 export default defineConfig({
   antd: {},
+  access: {},
   initialState: {},
   model: {},
   request: {},
