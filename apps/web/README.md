@@ -1,6 +1,6 @@
 # FactoryPilot Web
 
-FactoryPilot 前端基于 Ant Design Pro v6 / Ant Design 6 体系构建，当前阶段为 **Phase 0.3 — Frontend Foundation**。
+FactoryPilot 前端基于 Ant Design Pro v6 / Ant Design 6 体系构建，当前已进入 **Phase 1.7 — Frontend Authentication + Permission-aware Navigation**。
 
 ## 环境
 
@@ -40,8 +40,12 @@ pnpm build
 - React Query 数据请求状态
 - Zustand 应用状态
 - FastAPI `/api/v1/health/*` 联调
-- Mock Factory Dashboard
-- 初始制造业菜单骨架
+- 正式制造业导航与 Dashboard 基线
+- 登录页与 JWT access / refresh token 客户端
+- `/api/v1/auth/me` 当前用户态
+- Access Token 临近过期自动刷新与 401 单次重试
+- Umi Access 路由守卫与 permission-aware 系统菜单
+- 服务端会话注销
 - Biome / TypeScript / Vitest
 
-Phase 0.4 将完成 FactoryPilot Design Tokens、完整导航和正式 Dashboard 视觉。
+受保护业务 API 的前端服务应统一通过 `src/services/auth.ts` 中的 `apiFetch` 发起请求，避免重复实现 Bearer Token 与 Refresh Rotation 逻辑。
