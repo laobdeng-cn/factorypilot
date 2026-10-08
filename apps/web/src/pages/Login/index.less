@@ -1,0 +1,133 @@
+.page {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: minmax(420px, 1.1fr) minmax(420px, 0.9fr);
+  background: #f3f6fa;
+}
+
+.brandPanel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 72px clamp(48px, 7vw, 120px);
+  overflow: hidden;
+  color: #fff;
+  background:
+    radial-gradient(circle at 16% 18%, rgb(37 99 235 / 24%), transparent 34%),
+    linear-gradient(145deg, #0f1c31 0%, #152846 52%, #10213b 100%);
+}
+
+.brandPanel::after {
+  content: '';
+  position: absolute;
+  width: 420px;
+  height: 420px;
+  right: -180px;
+  bottom: -170px;
+  border: 1px solid rgb(255 255 255 / 10%);
+  border-radius: 50%;
+}
+
+.brandMark {
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 18px;
+  border-radius: 12px;
+  background: #1677ff;
+  color: #fff;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  box-shadow: 0 14px 36px rgb(22 119 255 / 28%);
+}
+
+.brandTitle.ant-typography {
+  margin: 0;
+  color: #fff;
+  font-size: clamp(34px, 4vw, 50px);
+  line-height: 1.08;
+}
+
+.brandSubtitle.ant-typography {
+  margin: 8px 0 0;
+  color: rgb(226 232 240 / 78%);
+  font-size: 17px;
+}
+
+.brandCopy {
+  max-width: 640px;
+  margin: 72px 0 28px;
+}
+
+.brandCopy :global(.ant-typography) {
+  color: #fff;
+}
+
+.brandCopy p.ant-typography {
+  color: rgb(226 232 240 / 74%);
+  line-height: 1.8;
+}
+
+.brandPanel :global(.ant-tag) {
+  margin-inline-end: 0;
+  border-color: rgb(255 255 255 / 16%);
+  background: rgb(255 255 255 / 8%);
+  color: rgb(241 245 249 / 90%);
+}
+
+.formPanel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px;
+}
+
+.loginCard {
+  width: min(440px, 100%);
+  border: 1px solid #e8edf3;
+  box-shadow: 0 24px 70px rgb(15 23 42 / 10%);
+}
+
+.loginCard :global(.ant-card-body) {
+  padding: 36px;
+}
+
+.cardHeader {
+  margin-bottom: 28px;
+}
+
+.cardHeader :global(.ant-typography) {
+  margin-bottom: 4px;
+}
+
+.alert {
+  margin-bottom: 20px;
+}
+
+.securityHint.ant-typography {
+  margin: 22px 0 0;
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+@media (max-width: 960px) {
+  .page {
+    grid-template-columns: 1fr;
+  }
+
+  .brandPanel {
+    min-height: 310px;
+    padding: 44px 32px;
+  }
+
+  .brandCopy {
+    margin: 32px 0 20px;
+  }
+
+  .formPanel {
+    padding: 32px 20px 48px;
+  }
+}
