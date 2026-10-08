@@ -86,4 +86,6 @@ class CurrentUserResponse(BaseModel):
     primary_plant_id: UUID | None
     username: str
     display_name: str
+    role_codes: list[str]
+    permission_codes: list[str]
     user: UserRead
