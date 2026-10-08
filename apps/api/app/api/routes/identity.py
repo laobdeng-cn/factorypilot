@@ -4,7 +4,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.auth import CurrentUserDep
+from app.core.auth import CurrentUser, CurrentUserDep, require_permission
 from app.db.session import get_db_session
 from app.models.user import User
 from app.schemas.enterprise import Page
@@ -26,11 +26,14 @@ router = APIRouter()
 SessionDep = Annotated[AsyncSession, Depends(get_db_session)]
 PageParam = Annotated[int, Query(ge=1)]
 PageSizeParam = Annotated[int, Query(ge=1, le=100)]
+UserReadDep = Annotated[CurrentUser, Depends(require_permission("identity.user.read"))]
+UserManageDep = Annotated[CurrentUser, Depends(require_permission("identity.user.manage"))]
 
 
 @router.get("/users", response_model=Page[UserRead], summary="用户列表")
 async def list_users(
     session: SessionDep,
+    _actor: UserReadDep,
     page: PageParam = 1,
     page_size: PageSizeParam = 20,
     organization_id: UUID | None = None,
@@ -57,17 +60,19 @@ async def list_users(
     status_code=status.HTTP_201_CREATED,
     summary="创建用户",
 )
-async def create_user(payload: UserCreate, session: SessionDep) -> User:
+async def create_user(payload: UserCreate, session: SessionDep, _actor: UserManageDep) -> User:
     return await service.create_user(session, payload)
 
 
 @router.get("/users/{user_id}", response_model=UserRead, summary="用户详情")
-async def get_user(user_id: UUID, session: SessionDep) -> User:
+async def get_user(user_id: UUID, session: SessionDep, _actor: UserReadDep) -> User:
     return await service.get_user(session, user_id)
 
 
 @router.patch("/users/{user_id}", response_model=UserRead, summary="更新用户")
-async def update_user(user_id: UUID, payload: UserUpdate, session: SessionDep) -> User:
+async def update_user(
+    user_id: UUID, payload: UserUpdate, session: SessionDep, _actor: UserManageDep
+) -> User:
     return await service.update_user(session, user_id, payload)
 
 
@@ -77,7 +82,10 @@ async def update_user(user_id: UUID, payload: UserUpdate, session: SessionDep) -
     summary="重置用户密码",
 )
 async def change_password(
-    user_id: UUID, payload: PasswordChange, session: SessionDep
+    user_id: UUID,
+    payload: PasswordChange,
+    session: SessionDep,
+    _actor: UserManageDep,
 ) -> Response:
     await service.change_password(session, user_id, payload.new_password)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
@@ -104,6 +112,8 @@ async def me(current_user: CurrentUserDep) -> CurrentUserResponse:
         primary_plant_id=current_user.primary_plant_id,
         username=user.username,
         display_name=user.display_name,
+        role_codes=sorted(current_user.role_codes),
+        permission_codes=sorted(current_user.permission_codes),
         user=UserRead.model_validate(user),
     )
 
