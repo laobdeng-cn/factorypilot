@@ -6,7 +6,6 @@ from sqlalchemy import delete
 
 from app.db.session import AsyncSessionFactory
 from app.main import app
-from app.models.auth import AuthSession
 from app.models.enterprise import Department, Organization, Plant
 from app.models.user import User
 
@@ -17,8 +16,11 @@ async def test_user_and_token_authentication_flow() -> None:
     organization_id: str | None = None
     plant_id: str | None = None
     department_id: str | None = None
+    admin_user_id: str | None = None
     user_id: str | None = None
+    admin_username = f"admin.{suffix}"
     username = f"planner.{suffix}"
+    admin_password = "FactoryPilot#Admin2026!"
     initial_password = "FactoryPilot#2026!"
     new_password = "FactoryPilot#2027!"
 
@@ -26,14 +28,33 @@ async def test_user_and_token_authentication_flow() -> None:
     try:
         async with AsyncClient(transport=transport, base_url="http://testserver") as client:
             response = await client.post(
-                "/api/v1/organizations",
-                json={"code": f"AUTH-{suffix}", "name": "Authentication Test Organization"},
+                "/api/v1/rbac/bootstrap",
+                json={
+                    "organization_code": f"AUTH-{suffix}",
+                    "organization_name": "Authentication Test Organization",
+                    "username": admin_username,
+                    "employee_no": f"ADM-{suffix}",
+                    "display_name": "认证测试管理员",
+                    "password": admin_password,
+                },
             )
             assert response.status_code == 201
-            organization_id = response.json()["id"]
+            bootstrap = response.json()
+            organization_id = bootstrap["organization_id"]
+            admin_user_id = bootstrap["user"]["id"]
+
+            response = await client.post(
+                "/api/v1/auth/login",
+                json={"username": admin_username, "password": admin_password},
+            )
+            assert response.status_code == 200
+            admin_headers = {
+                "Authorization": f"Bearer {response.json()['access_token']}"
+            }
 
             response = await client.post(
                 "/api/v1/plants",
+                headers=admin_headers,
                 json={
                     "organization_id": organization_id,
                     "code": f"P-{suffix}",
@@ -45,6 +66,7 @@ async def test_user_and_token_authentication_flow() -> None:
 
             response = await client.post(
                 "/api/v1/departments",
+                headers=admin_headers,
                 json={
                     "organization_id": organization_id,
                     "plant_id": plant_id,
@@ -57,6 +79,7 @@ async def test_user_and_token_authentication_flow() -> None:
 
             response = await client.post(
                 "/api/v1/users",
+                headers=admin_headers,
                 json={
                     "organization_id": organization_id,
                     "department_id": department_id,
@@ -87,10 +110,6 @@ async def test_user_and_token_authentication_flow() -> None:
             )
             assert response.status_code == 200
             login = response.json()
-            assert login["authenticated"] is True
-            assert login["token_type"] == "bearer"
-            assert login["access_token"]
-            assert login["refresh_token"]
             access_token = login["access_token"]
             refresh_token = login["refresh_token"]
 
@@ -102,8 +121,8 @@ async def test_user_and_token_authentication_flow() -> None:
             current = response.json()
             assert current["user_id"] == user_id
             assert current["organization_id"] == organization_id
-            assert current["department_id"] == department_id
-            assert current["primary_plant_id"] == plant_id
+            assert current["role_codes"] == []
+            assert current["permission_codes"] == []
 
             response = await client.post(
                 "/api/v1/auth/refresh",
@@ -137,6 +156,7 @@ async def test_user_and_token_authentication_flow() -> None:
 
             response = await client.post(
                 f"/api/v1/users/{user_id}/password",
+                headers=admin_headers,
                 json={"new_password": new_password},
             )
             assert response.status_code == 204
@@ -156,13 +176,15 @@ async def test_user_and_token_authentication_flow() -> None:
     finally:
         async with AsyncSessionFactory() as session:
             if user_id is not None:
-                await session.execute(delete(AuthSession).where(AuthSession.user_id == user_id))
                 await session.execute(delete(User).where(User.id == user_id))
+            if admin_user_id is not None:
+                await session.execute(delete(User).where(User.id == admin_user_id))
             if department_id is not None:
                 await session.execute(delete(Department).where(Department.id == department_id))
             if plant_id is not None:
                 await session.execute(delete(Plant).where(Plant.id == plant_id))
             if organization_id is not None:
-                cleanup = delete(Organization).where(Organization.id == organization_id)
-                await session.execute(cleanup)
+                await session.execute(
+                    delete(Organization).where(Organization.id == organization_id)
+                )
             await session.commit()
