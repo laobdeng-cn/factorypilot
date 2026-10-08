@@ -4,6 +4,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.auth import CurrentUser, require_permission
 from app.db.session import get_db_session
 from app.models.enterprise import Department, Organization, Plant
 from app.schemas.enterprise import (
@@ -24,11 +25,28 @@ router = APIRouter()
 SessionDep = Annotated[AsyncSession, Depends(get_db_session)]
 PageParam = Annotated[int, Query(ge=1)]
 PageSizeParam = Annotated[int, Query(ge=1, le=100)]
+OrganizationReadDep = Annotated[
+    CurrentUser, Depends(require_permission("enterprise.organization.read"))
+]
+OrganizationManageDep = Annotated[
+    CurrentUser, Depends(require_permission("enterprise.organization.manage"))
+]
+PlantReadDep = Annotated[CurrentUser, Depends(require_permission("enterprise.plant.read"))]
+PlantManageDep = Annotated[
+    CurrentUser, Depends(require_permission("enterprise.plant.manage"))
+]
+DepartmentReadDep = Annotated[
+    CurrentUser, Depends(require_permission("enterprise.department.read"))
+]
+DepartmentManageDep = Annotated[
+    CurrentUser, Depends(require_permission("enterprise.department.manage"))
+]
 
 
 @router.get("/organizations", response_model=Page[OrganizationRead], summary="组织列表")
 async def list_organizations(
     session: SessionDep,
+    _actor: OrganizationReadDep,
     page: PageParam = 1,
     page_size: PageSizeParam = 20,
     is_active: bool | None = None,
@@ -44,12 +62,16 @@ async def list_organizations(
     status_code=status.HTTP_201_CREATED,
     summary="创建组织",
 )
-async def create_organization(payload: OrganizationCreate, session: SessionDep) -> Organization:
+async def create_organization(
+    payload: OrganizationCreate, session: SessionDep, _actor: OrganizationManageDep
+) -> Organization:
     return await service.create_organization(session, payload)
 
 
 @router.get("/organizations/{organization_id}", response_model=OrganizationRead, summary="组织详情")
-async def get_organization(organization_id: UUID, session: SessionDep) -> Organization:
+async def get_organization(
+    organization_id: UUID, session: SessionDep, _actor: OrganizationReadDep
+) -> Organization:
     return await service.get_organization(session, organization_id)
 
 
@@ -57,7 +79,10 @@ async def get_organization(organization_id: UUID, session: SessionDep) -> Organi
     "/organizations/{organization_id}", response_model=OrganizationRead, summary="更新组织"
 )
 async def update_organization(
-    organization_id: UUID, payload: OrganizationUpdate, session: SessionDep
+    organization_id: UUID,
+    payload: OrganizationUpdate,
+    session: SessionDep,
+    _actor: OrganizationManageDep,
 ) -> Organization:
     return await service.update_organization(session, organization_id, payload)
 
@@ -65,6 +90,7 @@ async def update_organization(
 @router.get("/plants", response_model=Page[PlantRead], summary="工厂列表")
 async def list_plants(
     session: SessionDep,
+    _actor: PlantReadDep,
     page: PageParam = 1,
     page_size: PageSizeParam = 20,
     organization_id: UUID | None = None,
@@ -85,23 +111,31 @@ async def list_plants(
     status_code=status.HTTP_201_CREATED,
     summary="创建工厂",
 )
-async def create_plant(payload: PlantCreate, session: SessionDep) -> Plant:
+async def create_plant(
+    payload: PlantCreate, session: SessionDep, _actor: PlantManageDep
+) -> Plant:
     return await service.create_plant(session, payload)
 
 
 @router.get("/plants/{plant_id}", response_model=PlantRead, summary="工厂详情")
-async def get_plant(plant_id: UUID, session: SessionDep) -> Plant:
+async def get_plant(plant_id: UUID, session: SessionDep, _actor: PlantReadDep) -> Plant:
     return await service.get_plant(session, plant_id)
 
 
 @router.patch("/plants/{plant_id}", response_model=PlantRead, summary="更新工厂")
-async def update_plant(plant_id: UUID, payload: PlantUpdate, session: SessionDep) -> Plant:
+async def update_plant(
+    plant_id: UUID,
+    payload: PlantUpdate,
+    session: SessionDep,
+    _actor: PlantManageDep,
+) -> Plant:
     return await service.update_plant(session, plant_id, payload)
 
 
 @router.get("/departments", response_model=Page[DepartmentRead], summary="部门列表")
 async def list_departments(
     session: SessionDep,
+    _actor: DepartmentReadDep,
     page: PageParam = 1,
     page_size: PageSizeParam = 20,
     organization_id: UUID | None = None,
@@ -126,17 +160,24 @@ async def list_departments(
     status_code=status.HTTP_201_CREATED,
     summary="创建部门",
 )
-async def create_department(payload: DepartmentCreate, session: SessionDep) -> Department:
+async def create_department(
+    payload: DepartmentCreate, session: SessionDep, _actor: DepartmentManageDep
+) -> Department:
     return await service.create_department(session, payload)
 
 
 @router.get("/departments/{department_id}", response_model=DepartmentRead, summary="部门详情")
-async def get_department(department_id: UUID, session: SessionDep) -> Department:
+async def get_department(
+    department_id: UUID, session: SessionDep, _actor: DepartmentReadDep
+) -> Department:
     return await service.get_department(session, department_id)
 
 
 @router.patch("/departments/{department_id}", response_model=DepartmentRead, summary="更新部门")
 async def update_department(
-    department_id: UUID, payload: DepartmentUpdate, session: SessionDep
+    department_id: UUID,
+    payload: DepartmentUpdate,
+    session: SessionDep,
+    _actor: DepartmentManageDep,
 ) -> Department:
     return await service.update_department(session, department_id, payload)
