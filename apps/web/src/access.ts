@@ -27,7 +27,11 @@ export default function access(initialState: InitialState | undefined) {
     canReadUsers: permissions.has('identity.user.read'),
     canManageUsers: permissions.has('identity.user.manage'),
     canReadRbac: hasAnyPermission('rbac.role.read', 'rbac.permission.read'),
-    canManageRbac: hasAnyPermission('rbac.role.manage', 'rbac.user_role.manage', 'rbac.data_scope.manage'),
+    canManageRbac: permissions.has('rbac.role.manage'),
+    canReadUserRoles: permissions.has('rbac.user_role.read'),
+    canManageUserRoles: permissions.has('rbac.user_role.manage'),
+    canReadDataScope: permissions.has('rbac.data_scope.read'),
+    canManageDataScope: permissions.has('rbac.data_scope.manage'),
     canReadAudit: hasAnyPermission(
       'audit.log.read',
       'audit.security_event.read',

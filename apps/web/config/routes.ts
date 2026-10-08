@@ -138,16 +138,28 @@ export default [
         access: 'authenticated',
       },
       {
-        name: '用户与组织',
+        name: '组织架构',
         path: '/system/organization',
-        component: './Placeholder',
+        component: './SystemOrganization',
         access: 'canReadEnterprise',
+      },
+      {
+        name: '用户管理',
+        path: '/system/users',
+        component: './SystemUsers',
+        access: 'canReadUsers',
       },
       {
         name: '角色与权限',
         path: '/system/rbac',
-        component: './Placeholder',
+        component: './SystemRoles',
         access: 'canReadRbac',
+      },
+      {
+        name: '数据权限',
+        path: '/system/data-scope',
+        component: './SystemDataScope',
+        access: 'canReadDataScope',
       },
       {
         name: '集成中心',

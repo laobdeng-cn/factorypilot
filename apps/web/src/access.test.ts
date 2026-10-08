@@ -48,6 +48,7 @@ describe('frontend access policy', () => {
     const policy = access({ currentUser: null });
     expect(policy.authenticated).toBe(false);
     expect(policy.canReadEnterprise).toBe(false);
+    expect(policy.canReadDataScope).toBe(false);
     expect(policy.canReadAudit).toBe(false);
   });
 
@@ -57,11 +58,13 @@ describe('frontend access policy', () => {
     expect(policy.canReadEnterprise).toBe(true);
     expect(policy.canReadUsers).toBe(true);
     expect(policy.canReadRbac).toBe(false);
+    expect(policy.canReadUserRoles).toBe(false);
+    expect(policy.canReadDataScope).toBe(false);
     expect(policy.canReadAudit).toBe(false);
     expect(policy.isSystemAdmin).toBe(false);
   });
 
-  it('exposes system admin permission capabilities', () => {
+  it('exposes system admin IAM capabilities independently', () => {
     const policy = access({
       currentUser: makeCurrentUser({
         role_codes: ['system_admin'],
@@ -69,7 +72,11 @@ describe('frontend access policy', () => {
           'enterprise.organization.manage',
           'identity.user.manage',
           'rbac.role.read',
+          'rbac.role.manage',
+          'rbac.user_role.read',
           'rbac.user_role.manage',
+          'rbac.data_scope.read',
+          'rbac.data_scope.manage',
           'audit.log.read',
         ],
       }),
@@ -80,6 +87,10 @@ describe('frontend access policy', () => {
     expect(policy.canManageUsers).toBe(true);
     expect(policy.canReadRbac).toBe(true);
     expect(policy.canManageRbac).toBe(true);
+    expect(policy.canReadUserRoles).toBe(true);
+    expect(policy.canManageUserRoles).toBe(true);
+    expect(policy.canReadDataScope).toBe(true);
+    expect(policy.canManageDataScope).toBe(true);
     expect(policy.canReadAudit).toBe(true);
   });
 });
