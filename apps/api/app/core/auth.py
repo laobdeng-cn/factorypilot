@@ -3,7 +3,7 @@ from datetime import UTC, datetime
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import Depends
+from fastapi import Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -56,7 +56,11 @@ CredentialsDep = Annotated[
 SessionDep = Annotated[AsyncSession, Depends(get_db_session)]
 
 
-async def get_current_user(credentials: CredentialsDep, session: SessionDep) -> CurrentUser:
+async def get_current_user(
+    request: Request,
+    credentials: CredentialsDep,
+    session: SessionDep,
+) -> CurrentUser:
     if credentials is None or credentials.scheme.lower() != "bearer":
         raise AppError(
             code="auth.missing_token",
@@ -81,6 +85,12 @@ async def get_current_user(credentials: CredentialsDep, session: SessionDep) -> 
         )
     role_codes, permission_codes = await load_authorization(session, user.id)
     data_scope = await load_data_scope(session, user)
+
+    request.state.actor_user_id = user.id
+    request.state.organization_id = user.organization_id
+    request.state.auth_session_id = auth_session.id
+    request.state.data_scope_type = data_scope.scope_type.value
+
     return CurrentUser(
         user=user,
         auth_session=auth_session,
@@ -98,14 +108,17 @@ class PermissionChecker:
     def __init__(self, permission_code: str) -> None:
         self.permission_code = permission_code
 
-    async def __call__(self, current_user: CurrentUserDep) -> CurrentUser:
+    async def __call__(self, request: Request, current_user: CurrentUserDep) -> CurrentUser:
+        request.state.required_permission = self.permission_code
         if self.permission_code not in current_user.permission_codes:
+            request.state.authorization_result = "denied"
             raise AppError(
                 code="auth.permission_denied",
                 message="Current user does not have the required permission",
                 status_code=403,
                 details={"required_permission": self.permission_code},
             )
+        request.state.authorization_result = "allowed"
         return current_user
 
 

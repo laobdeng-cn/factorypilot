@@ -1,10 +1,11 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, Response, status
+from fastapi import APIRouter, Depends, Query, Request, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import CurrentUser, CurrentUserDep, require_permission
+from app.core.tokens import decode_token
 from app.db.session import get_db_session
 from app.models.user import User
 from app.schemas.enterprise import Page
@@ -72,11 +73,21 @@ async def get_user(user_id: UUID, session: SessionDep, actor: UserReadDep) -> Us
 
 @router.patch("/users/{user_id}", response_model=UserRead, summary="更新用户")
 async def update_user(
-    user_id: UUID, payload: UserUpdate, session: SessionDep, actor: UserManageDep
+    user_id: UUID,
+    payload: UserUpdate,
+    session: SessionDep,
+    actor: UserManageDep,
+    request: Request,
 ) -> User:
-    return await service.update_user(
+    entity = await service.update_user(
         session, user_id, payload, data_scope=actor.data_scope
     )
+    if payload.is_active is False:
+        request.state.security_event_type = "auth.sessions_revoked"
+        request.state.security_event_category = "session"
+        request.state.security_event_severity = "warning"
+        request.state.audit_subject = str(user_id)
+    return entity
 
 
 @router.post(
@@ -89,6 +100,7 @@ async def change_password(
     payload: PasswordChange,
     session: SessionDep,
     actor: UserManageDep,
+    request: Request,
 ) -> Response:
     await service.change_password(
         session,
@@ -96,17 +108,36 @@ async def change_password(
         payload.new_password,
         data_scope=actor.data_scope,
     )
+    request.state.security_event_type = "auth.sessions_revoked"
+    request.state.security_event_category = "session"
+    request.state.security_event_severity = "warning"
+    request.state.audit_subject = str(user_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.post("/auth/login", response_model=LoginResponse, summary="登录并签发访问令牌")
-async def login(payload: LoginRequest, session: SessionDep) -> LoginResponse:
-    return await auth_service.login(session, payload)
+async def login(payload: LoginRequest, session: SessionDep, request: Request) -> LoginResponse:
+    request.state.audit_subject = payload.username.strip().lower()
+    response = await auth_service.login(session, payload)
+    claims = decode_token(response.access_token, expected_type="access")
+    request.state.actor_user_id = response.user.id
+    request.state.organization_id = response.user.organization_id
+    request.state.auth_session_id = claims.session_id
+    return response
 
 
 @router.post("/auth/refresh", response_model=TokenPairResponse, summary="轮换刷新令牌")
-async def refresh(payload: RefreshRequest, session: SessionDep) -> TokenPairResponse:
-    return await auth_service.refresh(session, payload.refresh_token)
+async def refresh(
+    payload: RefreshRequest,
+    session: SessionDep,
+    request: Request,
+) -> TokenPairResponse:
+    response = await auth_service.refresh(session, payload.refresh_token)
+    claims = decode_token(response.access_token, expected_type="access")
+    request.state.actor_user_id = response.user.id
+    request.state.organization_id = response.user.organization_id
+    request.state.auth_session_id = claims.session_id
+    return response
 
 
 @router.get("/auth/me", response_model=CurrentUserResponse, summary="当前登录用户")

@@ -47,9 +47,15 @@ def _error_payload(
     }
 
 
+def _bind_error_context(request: Request, code: str, details: Any | None) -> None:
+    request.state.error_code = code
+    request.state.error_details = details
+
+
 def register_exception_handlers(app: FastAPI) -> None:
     @app.exception_handler(AppError)
     async def handle_app_error(request: Request, exc: AppError) -> JSONResponse:
+        _bind_error_context(request, exc.code, exc.details)
         return JSONResponse(
             status_code=exc.status_code,
             content=_error_payload(
@@ -64,32 +70,38 @@ def register_exception_handlers(app: FastAPI) -> None:
     async def handle_validation_error(
         request: Request, exc: RequestValidationError
     ) -> JSONResponse:
+        details = exc.errors()
+        _bind_error_context(request, "validation_error", details)
         return JSONResponse(
             status_code=422,
             content=_error_payload(
                 request,
                 code="validation_error",
                 message="Request validation failed",
-                details=exc.errors(),
+                details=details,
             ),
         )
 
     @app.exception_handler(StarletteHTTPException)
     async def handle_http_error(request: Request, exc: StarletteHTTPException) -> JSONResponse:
         message = exc.detail if isinstance(exc.detail, str) else "HTTP request failed"
+        details = None if isinstance(exc.detail, str) else exc.detail
+        code = f"http_{exc.status_code}"
+        _bind_error_context(request, code, details)
         return JSONResponse(
             status_code=exc.status_code,
             content=_error_payload(
                 request,
-                code=f"http_{exc.status_code}",
+                code=code,
                 message=message,
-                details=None if isinstance(exc.detail, str) else exc.detail,
+                details=details,
             ),
         )
 
     @app.exception_handler(Exception)
     async def handle_unexpected_error(request: Request, exc: Exception) -> JSONResponse:
         details = repr(exc) if settings.debug else None
+        _bind_error_context(request, "internal_server_error", details)
         return JSONResponse(
             status_code=500,
             content=_error_payload(

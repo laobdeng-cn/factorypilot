@@ -6,6 +6,8 @@ import structlog
 from fastapi import FastAPI, Request, Response
 from structlog.contextvars import bind_contextvars, clear_contextvars
 
+from app.services.audit import persist_request_audit
+
 logger = structlog.get_logger(__name__)
 
 
@@ -45,5 +47,16 @@ def register_http_middleware(app: FastAPI) -> None:
             status_code=response.status_code,
             duration_ms=duration_ms,
         )
+
+        try:
+            await persist_request_audit(request, response.status_code)
+        except Exception:
+            logger.exception(
+                "audit_persist_failed",
+                method=request.method,
+                path=request.url.path,
+                status_code=response.status_code,
+            )
+
         clear_contextvars()
         return response
